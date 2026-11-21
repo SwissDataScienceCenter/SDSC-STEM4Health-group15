@@ -27,6 +27,7 @@ from bioreactor_decoding.config import MODELS_DIR, REPORTS_DIR
 from bioreactor_decoding.dataset import RAW_PATH, TARGETS, load_tables
 from bioreactor_decoding.features import build_features, feature_columns
 from bioreactor_decoding.modeling.models import (
+    ConstantNullModel,
     FoldChangeRegressor,
     MedianFoldChange,
     challenge_score,
@@ -55,6 +56,7 @@ def make_xgb(random_state: int = 0) -> FoldChangeRegressor:
 
 
 MODELS = {
+    "null_constant": ConstantNullModel,
     "median_fold_change": MedianFoldChange,
     "xgb": make_xgb,
 }

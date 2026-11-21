@@ -55,6 +55,27 @@ class FoldChangeRegressor(BaseEstimator, RegressorMixin):
         )
 
 
+class ConstantNullModel(BaseEstimator, RegressorMixin):
+    """Constant null model: one constant per target, the mean over all times and training batches.
+
+    Ignores time, x(0) and feeds entirely, so it is the floor any model must clear.
+    """
+
+    def __init__(self, targets=tuple(TARGETS)):
+        self.targets = targets
+
+    def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
+        self.means_ = Y[list(self.targets)].mean()
+        return self
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            np.tile(self.means_.to_numpy(), (len(X), 1)),
+            columns=list(self.targets),
+            index=X.index,
+        )
+
+
 class MedianFoldChange(BaseEstimator, RegressorMixin):
     """Baseline: per sample index k, the median log fold change in the training fold, times x(0)."""
 
