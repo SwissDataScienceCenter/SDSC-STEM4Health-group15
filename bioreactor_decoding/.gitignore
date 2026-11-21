@@ -189,3 +189,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+# Trained model artefacts (regenerate with: python -m bioreactor_decoding.modeling.train)
+/models/*.pkl
