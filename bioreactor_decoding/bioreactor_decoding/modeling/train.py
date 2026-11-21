@@ -95,6 +95,20 @@ def cross_validate(models: dict, X, Y, split) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def holdout_check(model, X, Y, split) -> tuple[pd.DataFrame, dict[str, float]]:
+    """Fit a fresh clone of `model` on dev batches only and score it on the holdout batches.
+
+    The model never sees holdout rows (features or labels): it is fitted on the dev rows
+    alone, and features are built per batch with no cross-batch statistics.
+    """
+    dev, holdout = split["role"] == "dev", split["role"] == "holdout"
+    if set(split.loc[dev, "batch_id"]) & set(split.loc[holdout, "batch_id"]):
+        raise ValueError("A batch is in both dev and holdout")
+    fitted = clone(model).fit(X[dev], Y[dev])
+    pred = fitted.predict(X[holdout])
+    return pred, challenge_score(Y[holdout], pred)
+
+
 @app.command()
 def main(
     model: str = "xgb",

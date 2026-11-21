@@ -6,6 +6,7 @@ from bioreactor_decoding.dataset import RAW_PATH, TARGETS, load_tables, load_tem
 from bioreactor_decoding.features import build_features, feature_columns
 from bioreactor_decoding.modeling.models import FoldChangeRegressor, MedianFoldChange, mape
 from bioreactor_decoding.modeling.predict import fill_template
+from bioreactor_decoding.modeling.train import MODELS, holdout_check, labelled_data
 
 pytestmark = pytest.mark.skipif(not RAW_PATH.exists(), reason="raw data not available")
 
@@ -80,3 +81,26 @@ def test_feature_columns_exclude_meta(tables):
     samples, feeds = tables
     cols = feature_columns(build_features(samples, feeds))
     assert "batch_id" not in cols and "elapsed_time" not in cols
+
+
+@pytest.mark.parametrize("model_name", ["null_constant", "null_per_day", "xgb_raw", "xgb"])
+def test_holdout_never_used_for_fitting(model_name):
+    """The model behind the holdout figures is fitted without any holdout data."""
+    X, Y, split = labelled_data()
+    model = MODELS[model_name]()
+    holdout = split["role"] == "holdout"
+    n = int(holdout.sum())
+    rng = np.random.default_rng(0)
+    pred, _ = holdout_check(model, X, Y, split)
+
+    # 1. Holdout labels never reach the model: replacing them changes no prediction.
+    Ys = Y.copy()
+    Ys.loc[holdout] = rng.random((n, Y.shape[1])) * 100
+    pd.testing.assert_frame_equal(holdout_check(model, X, Ys, split)[0], pred)
+
+    # 2. Holdout features are only used to predict their own row, never to fit:
+    #    shuffling them across holdout rows just shuffles the predictions.
+    perm = rng.permutation(n)
+    Xs = X.copy()
+    Xs.loc[holdout] = X.loc[holdout].to_numpy()[perm]
+    np.testing.assert_allclose(holdout_check(model, Xs, Y, split)[0].to_numpy(), pred.to_numpy()[perm])
