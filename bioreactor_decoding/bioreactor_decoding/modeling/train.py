@@ -67,7 +67,7 @@ MODELS = {
     "null_per_day": PerDayNullModel,
     "median_fold_change": MedianFoldChange,
     "xgb_raw": make_xgb_raw,
-    "xgb": make_xgb,
+    "xgb_log_fold_change": make_xgb,
 }
 
 
@@ -111,7 +111,7 @@ def holdout_check(model, X, Y, split) -> tuple[pd.DataFrame, dict[str, float]]:
 
 @app.command()
 def main(
-    model: str = "xgb",
+    model: str = "xgb_raw",
     use_future_feeds: bool = True,
     cv_path: Path = REPORTS_DIR / "cv_scores.csv",
 ):

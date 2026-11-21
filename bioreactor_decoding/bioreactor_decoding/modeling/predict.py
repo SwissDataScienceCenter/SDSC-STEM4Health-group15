@@ -38,7 +38,7 @@ def fill_template(template, pred_rows):
 
 @app.command()
 def main(
-    model_path: Path = MODELS_DIR / "xgb_all.pkl",
+    model_path: Path = MODELS_DIR / "xgb_raw_all.pkl",
     raw_path: Path = RAW_PATH,
     template_path: Path = TEMPLATE_PATH,
     output_path: Path = PROCESSED_DATA_DIR / "submission_xgb.csv",
