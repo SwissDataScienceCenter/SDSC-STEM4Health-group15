@@ -17,6 +17,7 @@ classifiers = [
 ]
 dependencies = [
     "dvc>=3.67.1",
+    "gto>=1.10.1",
     "ipython",
     "jupyterlab",
     "loguru",

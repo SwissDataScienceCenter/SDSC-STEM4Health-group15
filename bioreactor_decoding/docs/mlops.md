@@ -26,10 +26,38 @@ flowchart LR
 | `dvc exp run --set-param xgb.max_depth=4` | Try a parameter change as a tracked experiment |
 | `dvc exp show` | Compare experiments side by side |
 | `make test` | Leakage and holdout-isolation tests, among others |
+| `gto show` (from the git root) | Registered model versions |
 
 DVC decides what is out of date from the hashes recorded in `dvc.lock`: the data, the code each
 stage depends on, the parameters it reads, and its outputs. Changing `hybrid_v3.blend_weight`
 reruns the training stages; editing `plots.py` reruns only the figures.
+
+## Versioning models
+
+Model versions are git tags, managed with [GTO](https://dvc.org/doc/gto), DVC's model
+registry. They replace "_v2", "_v3" suffixes in file names. The models are declared under
+`artifacts:` in `dvc.yaml`; a version tag points at the commit whose code, `params.yaml`
+and `dvc.lock` produced that model, so `git checkout <tag> && make pipeline` rebuilds it.
+
+```bash
+gto show                                                   # every model and its latest version
+gto history bioreactor_decoding/dvc.yaml:hybrid_v3         # all versions of one model
+gto describe bioreactor_decoding/dvc.yaml:hybrid_v3@v1.0.0 # commit, path, description
+gto register bioreactor_decoding/dvc.yaml:hybrid_v3 --bump-minor   # after an improvement
+```
+
+Run GTO from the repository root (the git root is one level above this project).
+Semantic versioning for a model:
+
+| Bump | When | Example |
+|---|---|---|
+| major | A different modelling approach, or a change of the evaluation protocol | v1 → v2 |
+| minor | A new component or a retuned parameter that changes predictions | v1.0 → v1.1 |
+| patch | Same predictions, cleaner code, or a fix that does not change the scores | v1.0.0 → v1.0.1 |
+
+A model name stays the same across versions (`hybrid_v3` is the name of the team model, not a
+version number). An idea is tried first as a `dvc exp run` experiment and gets a version only
+if its CV score improves by more than the fold-to-fold noise (sd ≈ 0.4 MAPE).
 
 ## What is stored where
 

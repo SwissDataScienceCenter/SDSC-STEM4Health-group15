@@ -81,3 +81,40 @@ stages:
           cache: false
       - reports/figures/PE_all_models.png:
           cache: false
+
+# Model registry. Versions are git tags created with GTO, e.g.
+#   gto register bioreactor_decoding/dvc.yaml:hybrid_v3 --version v1.1.0
+#   gto show                      every model, its latest version and stage
+#   gto describe <model>@<ver>    the commit (code + params + dvc.lock) behind a version
+# Each artifact is the submission model, fitted on all 49 labelled batches.
+artifacts:
+  hybrid_v3:
+    path: models/hybrid_v3_all.pkl
+    type: model
+    desc: Hybrid ODE (mechanistic + neural-net rate corrections) + soft-sensor stage 2, 50/50 blend
+    labels: [hybrid, mechanistic, team-model]
+  null_xgb_ensemble:
+    path: models/null_xgb_ensemble_all.pkl
+    type: model
+    desc: 50/50 average of the per-day null model and raw XGBoost
+    labels: [baseline, ensemble]
+  xgb_log_fold_change:
+    path: models/xgb_log_fold_change_all.pkl
+    type: model
+    desc: XGBoost on log fold change vs. t = 0
+    labels: [baseline]
+  xgb_raw:
+    path: models/xgb_raw_all.pkl
+    type: model
+    desc: XGBoost on raw features and raw targets
+    labels: [baseline]
+  null_per_day:
+    path: models/null_per_day_all.pkl
+    type: model
+    desc: Per-day mean of each variable over the training batches
+    labels: [baseline, "null"]
+  null_constant:
+    path: models/null_constant_all.pkl
+    type: model
+    desc: Mean of each variable over all times and training batches
+    labels: [baseline, "null"]

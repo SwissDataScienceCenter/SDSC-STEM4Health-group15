@@ -287,6 +287,7 @@ version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "dvc" },
+    { name = "gto" },
     { name = "ipython" },
     { name = "jupyterlab" },
     { name = "loguru" },
@@ -311,6 +312,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dvc", specifier = ">=3.67.1" },
+    { name = "gto", specifier = ">=1.10.1" },
     { name = "ipython" },
     { name = "jupyterlab" },
     { name = "loguru" },
