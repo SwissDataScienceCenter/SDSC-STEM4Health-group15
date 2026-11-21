@@ -1,7 +1,11 @@
 # Data: never in git (challenge data). data/raw is versioned by DVC through data/raw.dvc
 # (a hash only); data/processed holds pipeline outputs (submissions). Rebuild: make pipeline
-/data/*
-!/data/*.dvc
+# (Subdirectories are listed one by one: DVC's gitignore matcher would treat a /data/* rule as
+# ignoring data/ itself, never see data/raw.dvc, and delete data/raw on checkout.)
+/data/raw/
+/data/interim/
+/data/external/
+/data/processed/
 
 # Model artifacts: DVC pipeline outputs (models/*.pkl) and the stage-1 fit cache.
 # Reproduce with `make pipeline`. Metrics, CV tables, holdout predictions and figures under
