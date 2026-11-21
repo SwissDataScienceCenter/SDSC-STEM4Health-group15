@@ -135,3 +135,22 @@ class MedianFoldChange(BaseEstimator, RegressorMixin):
         z = self.medians_.reindex(k).to_numpy()
         log0 = X[[f"log0_{c}" for c in self.targets]].to_numpy()
         return pd.DataFrame(np.exp(z + log0), columns=list(self.targets), index=X.index)
+
+
+class AverageEnsemble(BaseEstimator, RegressorMixin):
+    """Average of the members' predictions, each weighted equally.
+
+    Every member is cloned and fitted on the same training data, so the ensemble is itself a
+    plain estimator: CV, holdout_check and submissions treat it like any other model.
+    """
+
+    def __init__(self, estimators=()):
+        self.estimators = estimators
+
+    def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
+        self.estimators_ = [clone(e).fit(X, Y) for e in self.estimators]
+        return self
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        preds = [e.predict(X) for e in self.estimators_]
+        return sum(preds[1:], preds[0]) / len(preds)

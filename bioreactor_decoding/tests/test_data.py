@@ -83,7 +83,7 @@ def test_feature_columns_exclude_meta(tables):
     assert "batch_id" not in cols and "elapsed_time" not in cols
 
 
-@pytest.mark.parametrize("model_name", ["null_constant", "null_per_day", "xgb_raw", "xgb_log_fold_change"])
+@pytest.mark.parametrize("model_name", ["null_constant", "null_per_day", "xgb_raw", "xgb_log_fold_change", "null_xgb_ensemble"])
 def test_holdout_never_used_for_fitting(model_name):
     """The model behind the holdout figures is fitted without any holdout data."""
     X, Y, split = labelled_data()

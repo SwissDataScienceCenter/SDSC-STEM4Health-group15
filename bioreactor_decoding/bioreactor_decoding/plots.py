@@ -16,7 +16,12 @@ import typer
 from bioreactor_decoding.config import FIGURES_DIR
 from bioreactor_decoding.dataset import TARGETS, load_tables
 from bioreactor_decoding.modeling.models import ConstantNullModel, PerDayNullModel
-from bioreactor_decoding.modeling.train import holdout_check, labelled_data, make_xgb_raw
+from bioreactor_decoding.modeling.train import (
+    holdout_check,
+    labelled_data,
+    make_null_xgb_ensemble,
+    make_xgb_raw,
+)
 
 app = typer.Typer()
 
@@ -133,11 +138,20 @@ def xgb_raw(output_path: Path = FIGURES_DIR / "xgb_raw.png"):
 
 
 @app.command()
+def null_xgb_ensemble(output_path: Path = FIGURES_DIR / "null_xgb_ensemble.png"):
+    """50/50 ensemble of the per-day null model and raw XGBoost."""
+    holdout_figure(
+        make_null_xgb_ensemble(), "Null + XGBoost 50/50 ensemble vs. holdout batches", output_path
+    )
+
+
+@app.command()
 def all_figures():
     """Regenerate every holdout figure."""
     constant_null_model()
     per_day_null_model()
     xgb_raw()
+    null_xgb_ensemble()
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ from bioreactor_decoding.config import MODELS_DIR, REPORTS_DIR
 from bioreactor_decoding.dataset import RAW_PATH, TARGETS, load_tables
 from bioreactor_decoding.features import build_features, feature_columns
 from bioreactor_decoding.modeling.models import (
+    AverageEnsemble,
     ConstantNullModel,
     FoldChangeRegressor,
     MedianFoldChange,
@@ -62,12 +63,18 @@ def make_xgb(random_state: int = 0) -> FoldChangeRegressor:
     return FoldChangeRegressor(_xgb(random_state))
 
 
+def make_null_xgb_ensemble(random_state: int = 0) -> AverageEnsemble:
+    """50/50 average of the per-day null model and raw XGBoost."""
+    return AverageEnsemble([PerDayNullModel(), make_xgb_raw(random_state)])
+
+
 MODELS = {
     "null_constant": ConstantNullModel,
     "null_per_day": PerDayNullModel,
     "median_fold_change": MedianFoldChange,
     "xgb_raw": make_xgb_raw,
     "xgb_log_fold_change": make_xgb,
+    "null_xgb_ensemble": make_null_xgb_ensemble,
 }
 
 
