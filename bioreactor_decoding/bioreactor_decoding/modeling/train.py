@@ -31,6 +31,7 @@ from bioreactor_decoding.modeling.models import (
     FoldChangeRegressor,
     MedianFoldChange,
     PerDayNullModel,
+    PerTargetRegressor,
     challenge_score,
 )
 
@@ -51,6 +52,11 @@ def _xgb(random_state: int = 0) -> XGBRegressor:
     )
 
 
+def make_xgb_raw(random_state: int = 0) -> PerTargetRegressor:
+    """Straight-up XGBoost: raw features -> raw target values, one model per target."""
+    return PerTargetRegressor(_xgb(random_state))
+
+
 def make_xgb(random_state: int = 0) -> FoldChangeRegressor:
     """XGBoost on log fold change vs. t = 0 (positive by construction, relative-error loss)."""
     return FoldChangeRegressor(_xgb(random_state))
@@ -60,6 +66,7 @@ MODELS = {
     "null_constant": ConstantNullModel,
     "null_per_day": PerDayNullModel,
     "median_fold_change": MedianFoldChange,
+    "xgb_raw": make_xgb_raw,
     "xgb": make_xgb,
 }
 

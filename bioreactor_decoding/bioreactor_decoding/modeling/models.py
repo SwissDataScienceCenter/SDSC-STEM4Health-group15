@@ -35,6 +35,24 @@ def _log_fold_change(X: pd.DataFrame, Y: pd.DataFrame, target: str) -> np.ndarra
     return np.log(Y[target].to_numpy()) - X[f"log0_{target}"].to_numpy()
 
 
+class PerTargetRegressor(BaseEstimator, RegressorMixin):
+    """One clone of ``estimator`` per target, fitted directly on the raw target values.
+
+    No target transform and no normalisation: the plain "straight-up" setup.
+    """
+
+    def __init__(self, estimator=None, targets=tuple(TARGETS)):
+        self.estimator = estimator
+        self.targets = targets
+
+    def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
+        self.models_ = {c: clone(self.estimator).fit(X, Y[c]) for c in self.targets}
+        return self
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame({c: m.predict(X) for c, m in self.models_.items()}, index=X.index)
+
+
 class FoldChangeRegressor(BaseEstimator, RegressorMixin):
     """One clone of ``estimator`` per target, fitted on log fold change vs. t = 0."""
 

@@ -15,7 +15,7 @@ from bioreactor_decoding.modeling.models import (
     PerDayNullModel,
     challenge_score,
 )
-from bioreactor_decoding.modeling.train import labelled_data
+from bioreactor_decoding.modeling.train import labelled_data, make_xgb_raw
 
 app = typer.Typer()
 
@@ -97,6 +97,96 @@ def plot_holdout(
     return fig
 
 
+def _style_axis(ax):
+    ax.grid(True, color=GRID, lw=0.8)
+    ax.set_axisbelow(True)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(INK_MUTED)
+    ax.tick_params(colors=INK_MUTED, labelcolor=INK, labelsize=8)
+
+
+def plot_holdout_per_batch(
+    observed: pd.DataFrame,
+    predicted: pd.DataFrame,
+    model_label: str,
+    scores: dict[str, float],
+    title: str,
+) -> plt.Figure:
+    """Grid of variables (rows, shared x) x holdout batches (columns).
+
+    For models whose prediction differs per batch: each cell shows that batch's observed series
+    (thin, batch colour) and the model's prediction for it (thick black).
+    observed: batch_id, elapsed_time, TARGETS (incl. t = 0); predicted: same columns, t > 0.
+    """
+    styles = batch_styles(observed["batch_id"].unique())
+    fig, axes = plt.subplots(
+        len(TARGETS),
+        len(styles),
+        sharex=True,
+        sharey="row",
+        figsize=(2.1 * len(styles) + 1, 9),
+        layout="constrained",
+        squeeze=False,
+    )
+    for j, (b, style) in enumerate(styles.items()):
+        obs = observed[observed["batch_id"] == b].sort_values("elapsed_time")
+        pred = predicted[predicted["batch_id"] == b].sort_values("elapsed_time")
+        axes[0, j].set_title(b, fontsize=9, color=INK)
+        for i, c in enumerate(TARGETS):
+            ax = axes[i, j]
+            ax.plot(pred["elapsed_time"], pred[c], color="black", lw=3, label=model_label)
+            ax.plot(obs["elapsed_time"], obs[c], lw=1.2, marker="o", ms=2.5, label="Observed",
+                    **style)  # fmt: skip
+            _style_axis(ax)
+    for i, c in enumerate(TARGETS):
+        # set limits once per row, after everything is drawn, so no batch gets clipped
+        top = max(observed[c].max(), predicted[c].max())
+        axes[i, 0].set_ylim(0, 1.05 * top)
+        axes[i, 0].set_ylabel(f"{LABELS[c]}\nMAPE {scores[c]:.1f}%", color=INK, fontsize=9)
+    axes[-1, 0].set_xticks([0, 4, 8, 12])
+    fig.supxlabel("Elapsed time [days]", color=INK, fontsize=10)
+    handles = [
+        plt.Line2D([], [], color="black", lw=3, label=model_label),
+        plt.Line2D([], [], color=INK_MUTED, lw=1.2, marker="o", ms=2.5,
+                   label="Observed (batch colour)"),
+    ]  # fmt: skip
+    fig.legend(handles=handles, loc="outside upper right", ncols=2, frameon=False, fontsize=9)
+    fig.suptitle(
+        f"{title}   ·   mean holdout MAPE {scores['score']:.1f}%",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        color=INK,
+    )
+    return fig
+
+
+@app.command()
+def xgb_raw(output_path: Path = FIGURES_DIR / "xgb_raw.png"):
+    """Straight-up XGBoost (raw features -> raw targets), fitted on dev, vs. holdout batches."""
+    X, Y, split = labelled_data()
+    dev, holdout = split["role"] == "dev", split["role"] == "holdout"
+    model = make_xgb_raw().fit(X[dev], Y[dev])
+    pred = model.predict(X[holdout])
+    scores = challenge_score(Y[holdout], pred)
+    n_nonpos = int((pred <= 0).to_numpy().sum())
+    if n_nonpos:
+        logger.warning(f"{n_nonpos} non-positive holdout predictions")
+    pred[["batch_id", "elapsed_time"]] = split.loc[holdout, ["batch_id", "elapsed_time"]]
+
+    samples, _ = load_tables()
+    observed = samples.loc[samples["role"] == "holdout", ["batch_id", "elapsed_time", *TARGETS]]
+    fig = plot_holdout_per_batch(
+        observed, pred, "XGBoost (fit on dev)", scores, "Straight-up XGBoost vs. holdout batches"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, facecolor="white")
+    plt.close(fig)
+    logger.success(f"XGBoost raw: holdout score {scores['score']:.1f}% -> {output_path}")
+
+
 def _null_figure(model, reference_fn, label: str, title: str, output_path: Path, step: bool):
     """Fit `model` on dev, score it on holdout, and plot it against the holdout batches."""
     X, Y, split = labelled_data()
@@ -153,6 +243,7 @@ def all_figures():
     """Regenerate every holdout figure."""
     constant_null_model()
     per_day_null_model()
+    xgb_raw()
 
 
 if __name__ == "__main__":
