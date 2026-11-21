@@ -30,6 +30,7 @@ from bioreactor_decoding.modeling.models import (
     ConstantNullModel,
     FoldChangeRegressor,
     MedianFoldChange,
+    PerDayNullModel,
     challenge_score,
 )
 
@@ -57,6 +58,7 @@ def make_xgb(random_state: int = 0) -> FoldChangeRegressor:
 
 MODELS = {
     "null_constant": ConstantNullModel,
+    "null_per_day": PerDayNullModel,
     "median_fold_change": MedianFoldChange,
     "xgb": make_xgb,
 }

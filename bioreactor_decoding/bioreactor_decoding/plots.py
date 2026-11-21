@@ -12,6 +12,7 @@ from bioreactor_decoding.config import FIGURES_DIR
 from bioreactor_decoding.dataset import TARGETS, load_tables
 from bioreactor_decoding.modeling.models import (
     ConstantNullModel,
+    PerDayNullModel,
     challenge_score,
 )
 from bioreactor_decoding.modeling.train import labelled_data
@@ -131,9 +132,27 @@ def constant_null_model(output_path: Path = FIGURES_DIR / "null_model_constant.p
 
 
 @app.command()
+def per_day_null_model(output_path: Path = FIGURES_DIR / "null_model_per_day.png"):
+    """Per-day null model (per-variable mean of each sampling day over dev batches) vs. holdout."""
+
+    def reference(model, observed):
+        return model.means_.rename_axis("elapsed_time").reset_index()
+
+    _null_figure(
+        PerDayNullModel(),
+        reference,
+        "Per-day null model\n(daily mean of dev batches)",
+        "Per-day null model vs. holdout batches",
+        output_path,
+        step=True,
+    )
+
+
+@app.command()
 def all_figures():
     """Regenerate every holdout figure."""
     constant_null_model()
+    per_day_null_model()
 
 
 if __name__ == "__main__":

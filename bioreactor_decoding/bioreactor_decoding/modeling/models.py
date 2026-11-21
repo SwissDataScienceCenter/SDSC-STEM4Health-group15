@@ -55,6 +55,31 @@ class FoldChangeRegressor(BaseEstimator, RegressorMixin):
         )
 
 
+def sampling_day(X: pd.DataFrame) -> np.ndarray:
+    """Sampling day index: elapsed time rounded to the nearest whole day (samples are ~daily)."""
+    return np.rint(X["t"].to_numpy()).astype(int)
+
+
+class PerDayNullModel(BaseEstimator, RegressorMixin):
+    """Per-day null model: for each sampling day, the mean of each target across training batches.
+
+    A step function of time. Ignores x(0) and feeds, so it is the shared "process recipe" curve.
+    """
+
+    def __init__(self, targets=tuple(TARGETS)):
+        self.targets = targets
+
+    def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
+        self.means_ = Y[list(self.targets)].groupby(sampling_day(X)).mean()
+        return self
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        day = np.clip(sampling_day(X), self.means_.index.min(), self.means_.index.max())
+        return pd.DataFrame(
+            self.means_.reindex(day).to_numpy(), columns=list(self.targets), index=X.index
+        )
+
+
 class ConstantNullModel(BaseEstimator, RegressorMixin):
     """Constant null model: one constant per target, the mean over all times and training batches.
 
