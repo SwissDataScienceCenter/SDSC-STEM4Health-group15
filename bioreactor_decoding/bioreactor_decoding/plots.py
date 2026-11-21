@@ -1,8 +1,8 @@
-"""Holdout reality-check plots: actual holdout trajectories vs. a model fitted on dev only.
+"""Holdout reality-check figures, drawn from saved holdout predictions (no refitting).
 
-Every figure is a grid of variables (rows, shared x axis) x holdout batches (columns): the
-actual measurements in blue, the model's prediction for that batch in black. Models are
-fitted via `holdout_check`, which uses dev batches only.
+Inputs are reports/holdout/<model>.csv, written by bioreactor_decoding.modeling.evaluate from
+the model fitted on dev batches only. Every figure is a grid of variables (rows, shared x axis)
+x holdout batches (columns).
 """
 
 from pathlib import Path
@@ -13,16 +13,9 @@ import numpy as np
 import pandas as pd
 import typer
 
-from bioreactor_decoding.config import FIGURES_DIR
+from bioreactor_decoding.config import FIGURES_DIR, HOLDOUT_DIR
 from bioreactor_decoding.dataset import TARGETS, load_tables
-from bioreactor_decoding.modeling.models import ConstantNullModel, PerDayNullModel
-from bioreactor_decoding.modeling.train import (
-    holdout_check,
-    labelled_data,
-    make_hybrid_v3,
-    make_null_xgb_ensemble,
-    make_xgb_raw,
-)
+from bioreactor_decoding.modeling.models import challenge_score
 
 app = typer.Typer()
 
@@ -103,53 +96,57 @@ def plot_holdout_per_batch(
     return fig
 
 
-def holdout_figure(model, title: str, output_path: Path, step: bool = False):
-    """Fit `model` on dev batches only, predict the holdout batches, and plot the grid."""
-    X, Y, split = labelled_data()
-    pred, scores = holdout_check(model, X, Y, split)
-    pred[["batch_id", "elapsed_time"]] = split.loc[pred.index, ["batch_id", "elapsed_time"]]
+# model -> (figure file, title, draw the prediction as day-wide steps)
+FIGURES = {
+    "null_constant": ("null_model_constant.png", "Constant null model", False),
+    "null_per_day": ("null_model_per_day.png", "Per-day null model", True),
+    "xgb_raw": ("xgb_raw.png", "Straight-up XGBoost", False),
+    "xgb_log_fold_change": ("xgb_log_fold_change.png", "XGBoost on log fold change", False),
+    "null_xgb_ensemble": ("null_xgb_ensemble.png", "Null + XGBoost 50/50 ensemble", False),
+    "hybrid_v3": ("hybrid_v3.png", "Hybrid v3", False),
+}
 
+
+def load_holdout(model: str, holdout_dir: Path = HOLDOUT_DIR):
+    """(actual, predicted, scores) for one model.
+
+    Predictions come from reports/holdout/<model>.csv; the measured values are joined from the
+    raw data (they are not stored in reports/, which is in git).
+    """
+    pred = pd.read_csv(holdout_dir / f"{model}.csv")
     samples, _ = load_tables()
-    actual = samples.loc[samples["role"] == "holdout", ["batch_id", "elapsed_time", *TARGETS]]
-    fig = plot_holdout_per_batch(actual, pred, scores, title, step)
+    meas = samples.loc[samples["role"] == "holdout", ["batch_id", "elapsed_time", *TARGETS]]
+    key = ["batch_id", "t_key"]
+    merged = pred.assign(t_key=pred["elapsed_time"].round(6)).merge(
+        meas.assign(t_key=meas["elapsed_time"].round(6)).drop(columns="elapsed_time"),
+        on=key, how="left", suffixes=("_pred", ""), validate="one_to_one",
+    )  # fmt: skip
+    if merged[TARGETS].isna().any().any():
+        raise ValueError(f"Holdout predictions of {model} do not match the holdout samples")
+    actual = merged[["batch_id", "elapsed_time", *TARGETS]]
+    predicted = merged[["batch_id", "elapsed_time"]].join(
+        merged[[f"{c}_pred" for c in TARGETS]].set_axis(TARGETS, axis=1)
+    )
+    return actual, predicted, challenge_score(actual, predicted)
+
+
+def _save(fig, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, facecolor="white")
     plt.close(fig)
-    logger.success(f"{title}: holdout score {scores['score']:.1f}% -> {output_path}")
 
 
 @app.command()
-def constant_null_model(output_path: Path = FIGURES_DIR / "null_model_constant.png"):
-    """Constant null model (per-variable mean over all times and dev batches)."""
-    holdout_figure(ConstantNullModel(), "Constant null model vs. holdout batches", output_path)
-
-
-@app.command()
-def per_day_null_model(output_path: Path = FIGURES_DIR / "null_model_per_day.png"):
-    """Per-day null model (per-variable mean of each sampling day over dev batches)."""
-    holdout_figure(
-        PerDayNullModel(), "Per-day null model vs. holdout batches", output_path, step=True
-    )
-
-
-@app.command()
-def xgb_raw(output_path: Path = FIGURES_DIR / "xgb_raw.png"):
-    """Straight-up XGBoost (raw features -> raw targets)."""
-    holdout_figure(make_xgb_raw(), "Straight-up XGBoost vs. holdout batches", output_path)
-
-
-@app.command()
-def null_xgb_ensemble(output_path: Path = FIGURES_DIR / "null_xgb_ensemble.png"):
-    """50/50 ensemble of the per-day null model and raw XGBoost."""
-    holdout_figure(
-        make_null_xgb_ensemble(), "Null + XGBoost 50/50 ensemble vs. holdout batches", output_path
-    )
-
-
-@app.command()
-def hybrid_v3(output_path: Path = FIGURES_DIR / "hybrid_v3.png"):
-    """The team's hybrid v3 (hybrid ODE + soft sensors + 50/50 blend with boosting)."""
-    holdout_figure(make_hybrid_v3(), "Hybrid v3 vs. holdout batches", output_path)
+def holdout(model: str, output_dir: Path = FIGURES_DIR):
+    """Actual vs. predicted on the holdout batches for MODEL."""
+    filename, title, step = FIGURES[model]
+    actual, predicted, scores = load_holdout(model)
+    samples, _ = load_tables()  # add the given t = 0 values to the actual traces
+    t0 = samples.loc[(samples["role"] == "holdout") & (samples["elapsed_time"] == 0)]
+    actual = pd.concat([t0[["batch_id", "elapsed_time", *TARGETS]], actual], ignore_index=True)
+    fig = plot_holdout_per_batch(actual, predicted, scores, f"{title} vs. holdout batches", step)
+    _save(fig, output_dir / filename)
+    logger.success(f"{model}: holdout score {scores['score']:.1f}% -> {output_dir / filename}")
 
 
 # Categorical slots 1-4 of the validated palette (fixed order); one fixed colour per model.
@@ -226,42 +223,35 @@ def plot_pe_per_batch(pe: dict[str, pd.DataFrame], scores: dict[str, dict], titl
     return fig
 
 
+# model -> legend name, in the fixed palette order
+PE_MODELS = {
+    "xgb_raw": "XGBoost",
+    "null_per_day": "Per-day null",
+    "null_xgb_ensemble": "50/50 ensemble",
+    "hybrid_v3": "Hybrid v3",
+}
+
+
 @app.command()
 def pe_all_models(output_path: Path = FIGURES_DIR / "PE_all_models.png"):
     """Signed percent error of each model on the holdout batches (models fitted on dev)."""
-    models = {
-        "XGBoost": make_xgb_raw(),
-        "Per-day null": PerDayNullModel(),
-        "50/50 ensemble": make_null_xgb_ensemble(),
-        "Hybrid v3": make_hybrid_v3(),
-    }
-    X, Y, split = labelled_data()
-    holdout = split["role"] == "holdout"
-    meta = split.loc[holdout, ["batch_id", "elapsed_time"]]
     pe, scores = {}, {}
-    for name, model in models.items():
-        pred, scores[name] = holdout_check(model, X, Y, split)
-        actual = Y.loc[holdout, TARGETS]
-        err = 100 * (pred[TARGETS] - actual) / actual
-        pe[name] = pd.concat([meta, err], axis=1)
+    for model, name in PE_MODELS.items():
+        actual, predicted, scores[name] = load_holdout(model)
+        err = 100 * (predicted[TARGETS] - actual[TARGETS]) / actual[TARGETS]
+        pe[name] = pd.concat([actual[["batch_id", "elapsed_time"]], err], axis=1)
         n_off = int((err.abs() > PE_LIM).to_numpy().sum())
         logger.info(f"{name}: MAPE {scores[name]['score']:.1f}%, {n_off} points beyond ±{PE_LIM}%")
-
     fig = plot_pe_per_batch(pe, scores, "Percent error on holdout batches")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, facecolor="white")
-    plt.close(fig)
+    _save(fig, output_path)
     logger.success(f"PE comparison -> {output_path}")
 
 
 @app.command()
 def all_figures():
     """Regenerate every holdout figure."""
-    constant_null_model()
-    per_day_null_model()
-    xgb_raw()
-    null_xgb_ensemble()
-    hybrid_v3()
+    for model in FIGURES:
+        holdout(model)
     pe_all_models()
 
 

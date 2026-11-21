@@ -1,0 +1,44 @@
+# Pipeline settings and hyperparameters. Read by bioreactor_decoding.modeling.train and tracked
+# by DVC (dvc.yaml), so changing a value here reruns exactly the stages that depend on it.
+# Try a change without editing this file:  dvc exp run --set-param hybrid_v3.blend_weight=0.4
+
+# Models run by the pipeline; each gets its own train / evaluate / submission stages.
+# Names are keys of bioreactor_decoding.modeling.train.MODELS.
+models:
+  - null_constant
+  - null_per_day
+  - xgb_raw
+  - xgb_log_fold_change
+  - null_xgb_ensemble
+  - hybrid_v3
+
+seed: 0
+
+features:
+  # Add the feed dosed right after each sample (feeding is adaptive, so it carries information
+  # about that sample; legitimate because test feed schedules are given in full).
+  use_future_feeds: true
+
+# XGBoost, shared by xgb_raw, xgb_log_fold_change and null_xgb_ensemble.
+xgb:
+  n_estimators: 400
+  learning_rate: 0.03
+  max_depth: 3
+  min_child_weight: 3
+  subsample: 0.8
+  colsample_bytree: 0.8
+
+# Team model from branch hybrid_v3_tr, ported to bioreactor_decoding.modeling.hybrid_v3.
+hybrid_v3:
+  inner_folds: 5      # batch-wise folds inside fit for the stage-2 (stacking) features
+  n_bags: 10          # bootstrap bags of the data-driven branch
+  blend_weight: 0.5   # weight of the hybrid branch in the geometric blend
+  stage1:             # hybrid ODE (mechanistic model + rate-correcting neural nets)
+    variant: states
+    outputs: [mu, lac]  # rates the networks correct: growth and lactate
+    hidden: 4
+    lam: 0.01
+    seeds: 4
+    mech_starts: 6
+    mech_max_nfev: 300
+    net_max_nfev: 150

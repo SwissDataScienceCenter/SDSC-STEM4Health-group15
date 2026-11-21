@@ -46,6 +46,17 @@ test:
 	python -m pytest tests
 
 
+## Rebuild every out-of-date model, metric and submission (DVC pipeline)
+.PHONY: pipeline
+pipeline:
+	PATH="$(CURDIR)/.venv/bin:$$PATH" dvc repro
+
+## Show CV and holdout MAPE of every model in the pipeline
+.PHONY: metrics
+metrics:
+	PATH="$(CURDIR)/.venv/bin:$$PATH" dvc metrics show
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:

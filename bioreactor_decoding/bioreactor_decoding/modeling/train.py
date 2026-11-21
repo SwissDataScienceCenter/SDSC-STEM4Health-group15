@@ -1,21 +1,24 @@
-"""Cross-validation on the frozen team split, and final fits.
+"""Cross-validation on the frozen team split, and final fits, for one model.
 
 Validation protocol (see docs/intro.md, "Validation strategy"; split in references/splits.csv):
   * dev (39 batches): 5-fold CV using the frozen `fold` column -> all model selection happens here;
   * holdout (10 batches): final reality check only, never used to choose between models
-    (see bioreactor_decoding.plots / evaluate_holdout);
+    (scored by bioreactor_decoding.modeling.evaluate);
   * test (12 batches): no labels; predicted for the submission.
 Every row of a batch is in one fold. A validation batch is predicted from x(0), sampling times,
 volume and feeds only, exactly like a test batch. Estimators are cloned per fold, so anything
 fitted is fitted on the training fold only.
 
-Two final models are saved:
-  * fitted on dev only      -> for the holdout reality check;
-  * fitted on dev + holdout -> for the submission (uses all 49 labelled batches).
+Outputs of `main --model NAME`:
+  * reports/cv/NAME.csv            CV MAPE per fold and variable;
+  * reports/metrics/cv_NAME.json   mean CV MAPE (DVC metrics);
+  * models/NAME_dev.pkl            fitted on dev only      -> holdout reality check;
+  * models/NAME_all.pkl            fitted on dev + holdout -> submission (all 49 labelled batches).
+Hyperparameters come from params.yaml.
 """
 
+import json
 from pathlib import Path
-from typing import Annotated
 
 import joblib
 from loguru import logger
@@ -24,9 +27,10 @@ from sklearn.base import clone
 import typer
 from xgboost import XGBRegressor
 
-from bioreactor_decoding.config import MODELS_DIR, REPORTS_DIR
+from bioreactor_decoding.config import CV_DIR, METRICS_DIR, MODELS_DIR, load_params
 from bioreactor_decoding.dataset import RAW_PATH, TARGETS, load_tables
 from bioreactor_decoding.features import build_features, feature_columns
+from bioreactor_decoding.modeling.hybrid import HybridODEConfig
 from bioreactor_decoding.modeling.hybrid_v3 import HybridV3
 from bioreactor_decoding.modeling.models import (
     AverageEnsemble,
@@ -41,38 +45,41 @@ from bioreactor_decoding.modeling.models import (
 app = typer.Typer()
 
 
-def _xgb(random_state: int = 0) -> XGBRegressor:
+def _seed(random_state: int | None) -> int:
+    return load_params().get("seed", 0) if random_state is None else random_state
+
+
+def _xgb(random_state: int | None = None) -> XGBRegressor:
     return XGBRegressor(
-        n_estimators=400,
-        learning_rate=0.03,
-        max_depth=3,
-        min_child_weight=3,
-        subsample=0.8,
-        colsample_bytree=0.8,
+        **load_params().get("xgb", {}),
         objective="reg:squarederror",
         n_jobs=4,
-        random_state=random_state,
+        random_state=_seed(random_state),
     )
 
 
-def make_xgb_raw(random_state: int = 0) -> PerTargetRegressor:
+def make_xgb_raw(random_state: int | None = None) -> PerTargetRegressor:
     """Straight-up XGBoost: raw features -> raw target values, one model per target."""
     return PerTargetRegressor(_xgb(random_state))
 
 
-def make_xgb(random_state: int = 0) -> FoldChangeRegressor:
+def make_xgb(random_state: int | None = None) -> FoldChangeRegressor:
     """XGBoost on log fold change vs. t = 0 (positive by construction, relative-error loss)."""
     return FoldChangeRegressor(_xgb(random_state))
 
 
-def make_null_xgb_ensemble(random_state: int = 0) -> AverageEnsemble:
+def make_null_xgb_ensemble(random_state: int | None = None) -> AverageEnsemble:
     """50/50 average of the per-day null model and raw XGBoost."""
     return AverageEnsemble([PerDayNullModel(), make_xgb_raw(random_state)])
 
 
-def make_hybrid_v3(random_state: int = 0) -> HybridV3:
+def make_hybrid_v3(random_state: int | None = None) -> HybridV3:
     """The team's hybrid v3 (hybrid ODE + soft sensors + 50/50 blend with boosting)."""
-    return HybridV3(random_state=random_state)
+    p = dict(load_params().get("hybrid_v3", {}))
+    stage1 = p.pop("stage1", {})
+    if "outputs" in stage1:
+        stage1 = {**stage1, "outputs": tuple(stage1["outputs"])}
+    return HybridV3(**p, stage1=HybridODEConfig(**stage1), random_state=_seed(random_state))
 
 
 MODELS = {
@@ -129,37 +136,37 @@ def holdout_check(model, X, Y, split) -> tuple[pd.DataFrame, dict[str, float]]:
 
 
 @app.command()
-def main(
-    model: str = "xgb_raw",
-    use_future_feeds: bool = True,
-    cv_path: Path = REPORTS_DIR / "cv_scores.csv",
-    only: Annotated[
-        list[str] | None, typer.Option(help="Cross-validate only these models (default: all)")
-    ] = None,
-):
+def main(model: str = "xgb_raw", use_future_feeds: bool | None = None):
+    """Cross-validate MODEL on the dev folds, then fit it on dev and on dev + holdout."""
+    if use_future_feeds is None:
+        use_future_feeds = load_params().get("features", {}).get("use_future_feeds", True)
     X, Y, split = labelled_data(use_future_feeds)
     dev = split["role"] == "dev"
     logger.info(
-        f"dev: {split.loc[dev, 'batch_id'].nunique()} batches, "
-        f"holdout: {split.loc[~dev, 'batch_id'].nunique()} batches (not used in CV)"
+        f"{model}: dev {split.loc[dev, 'batch_id'].nunique()} batches, "
+        f"holdout {split.loc[~dev, 'batch_id'].nunique()} batches (not used in CV)"
     )
 
-    names = only or list(MODELS)
-    cv = cross_validate({name: MODELS[name]() for name in names}, X, Y, split)
-    if only and cv_path.exists():  # keep the other models' rows from earlier runs
-        old = pd.read_csv(cv_path)
-        cv = pd.concat([old[~old["model"].isin(names)], cv], ignore_index=True)
-    cv_path.parent.mkdir(parents=True, exist_ok=True)
-    cv.to_csv(cv_path, index=False)
-    summary = cv.groupby("model", sort=False)[[*TARGETS, "score"]].agg(["mean", "std"]).round(2)
-    logger.info(f"CV MAPE (%) on frozen dev folds:\n{summary.to_string()}")
+    cv = cross_validate({model: MODELS[model]()}, X, Y, split)
+    CV_DIR.mkdir(parents=True, exist_ok=True)
+    cv.to_csv(CV_DIR / f"{model}.csv", index=False)
+    mean = cv[[*TARGETS, "score"]].mean()
+    METRICS_DIR.mkdir(parents=True, exist_ok=True)
+    metrics = {"cv_mape": {k: round(float(v), 4) for k, v in mean.items()}}
+    (METRICS_DIR / f"cv_{model}.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    logger.info(f"{model}: CV MAPE {mean['score']:.2f}% (sd over folds {cv['score'].std():.2f})")
 
     for scope, rows in {"dev": dev, "all": split["role"].isin(["dev", "holdout"])}.items():
         fitted = MODELS[model]().fit(X[rows], Y[rows])
         path = MODELS_DIR / f"{model}_{scope}.pkl"
         path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(
-            {"model": fitted, "use_future_feeds": use_future_feeds, "features": list(X.columns)},
+            {
+                "model": fitted,
+                "use_future_feeds": use_future_feeds,
+                "features": list(X.columns),
+                "fitted_batches": sorted(split.loc[rows, "batch_id"].unique()),
+            },
             path,
         )
         logger.success(f"{model} fitted on {scope} batches -> {path}")

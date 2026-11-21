@@ -1,4 +1,8 @@
-"""Predict the test batches and fill the submission template without changing its format."""
+"""Predict the test batches and fill the submission template without changing its format.
+
+python -m bioreactor_decoding.modeling.predict --model hybrid_v3
+-> data/processed/submission_hybrid_v3.csv
+"""
 
 from pathlib import Path
 
@@ -38,11 +42,16 @@ def fill_template(template, pred_rows):
 
 @app.command()
 def main(
-    model_path: Path = MODELS_DIR / "xgb_raw_all.pkl",
+    model: str = "xgb_raw",
+    model_path: Path | None = None,
     raw_path: Path = RAW_PATH,
     template_path: Path = TEMPLATE_PATH,
-    output_path: Path = PROCESSED_DATA_DIR / "submission_xgb.csv",
+    output_path: Path | None = None,
 ):
+    """Fill the template with MODEL's predictions (models/MODEL_all.pkl, all 49 labelled
+    batches) -> data/processed/submission_MODEL.csv."""
+    model_path = model_path or MODELS_DIR / f"{model}_all.pkl"
+    output_path = output_path or PROCESSED_DATA_DIR / f"submission_{model}.csv"
     bundle = joblib.load(model_path)
     samples, feeds = load_tables(raw_path)
     feats = build_features(samples, feeds, bundle["use_future_feeds"])

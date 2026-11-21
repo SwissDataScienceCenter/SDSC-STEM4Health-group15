@@ -20,6 +20,22 @@ MODELS_DIR = PROJ_ROOT / "models"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
+METRICS_DIR = REPORTS_DIR / "metrics"  # DVC metrics: cv_<model>.json, <model>.json (holdout)
+CV_DIR = REPORTS_DIR / "cv"  # per-fold CV scores, <model>.csv
+HOLDOUT_DIR = REPORTS_DIR / "holdout"  # holdout predictions (no measured values), <model>.csv
+
+# Hyperparameters and pipeline settings (tracked by DVC, see dvc.yaml)
+PARAMS_PATH = PROJ_ROOT / "params.yaml"
+
+
+def load_params(path: Path = PARAMS_PATH) -> dict:
+    """params.yaml as a dict ({} if the file does not exist)."""
+    import yaml
+
+    if not path.exists():
+        return {}
+    return yaml.safe_load(path.read_text()) or {}
+
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135

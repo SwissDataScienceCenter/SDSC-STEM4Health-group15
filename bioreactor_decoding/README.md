@@ -6,55 +6,51 @@
 
 Develop a model that captures the key dynamics of batch-fed culture runs in a bioreactor, learns from historical dat, and proves its predictive power on unseen runs.
 
+## Quick start
+
+```bash
+make create_environment && make requirements   # .venv from uv.lock
+make test                                      # leakage + holdout-isolation tests
+make pipeline                                  # dvc repro: CV, fits, holdout check, figures, submissions
+make metrics                                   # CV and holdout MAPE of every model
+```
+
+Docs: [problem and data](docs/intro.md) · [pipeline, models, MLOps rules](docs/mlops.md)
+
 ## Project Organization
 
 ```
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
+├── Makefile           <- make test / pipeline / metrics / lint
+├── dvc.yaml           <- the pipeline: train -> evaluate -> submission, figures (docs/mlops.md)
+├── dvc.lock           <- hashes of every stage's inputs and outputs (what produced each result)
+├── params.yaml        <- hyperparameters and the list of models the pipeline runs
+├── pyproject.toml     <- package metadata, dependencies, ruff config
+├── uv.lock            <- exact dependency versions
 ├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
-│
-├── models             <- Trained and serialized models, model predictions, or model summaries
-│
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         bioreactor_decoding and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── bioreactor_decoding   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes bioreactor_decoding a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
+│   ├── raw            <- challenge data (not in git; versioned by DVC via data/raw.dvc)
+│   └── processed      <- submission_<model>.csv (pipeline output)
+├── docs               <- intro.md (problem, data, validation), mlops.md (pipeline, models)
+├── models             <- <model>_dev.pkl / <model>_all.pkl, cache/ (not in git)
+├── references         <- splits.csv: the frozen dev / holdout / test split
+├── reports
+│   ├── cv             <- CV MAPE per fold, per model
+│   ├── metrics        <- CV and holdout MAPE (DVC metrics)
+│   ├── holdout        <- holdout predictions (measured values stay in data/raw)
+│   └── figures        <- holdout figures
+├── tests              <- leakage, holdout-isolation and porting tests
+└── bioreactor_decoding   <- source code
+    ├── config.py      <- paths, params.yaml loader
+    ├── dataset.py     <- load raw data, split into samples / feeds, attach the frozen split
+    ├── features.py    <- leak-free per-batch features
+    ├── plots.py       <- holdout figures from saved predictions
+    └── modeling
+        ├── models.py       <- metric, null models, XGBoost wrappers, ensembles
+        ├── mechanistic.py  <- Sartorius-style ODE (numba) and its fitting
+        ├── hybrid.py       <- hybrid ODE: neural nets correcting growth and lactate rates
+        ├── hybrid_v3.py    <- hybrid v3: soft sensors, two branches, blend (one estimator)
+        ├── train.py        <- CV on the dev folds and final fits, per model
+        ├── evaluate.py     <- holdout check from the saved dev model
+        └── predict.py      <- fill the submission template
 ```
 
 --------

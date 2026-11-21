@@ -158,3 +158,18 @@ def test_v3_features_of_a_batch_ignore_other_batches(tables):
     alone = est._rows(X[one], s1[one.to_numpy()])
     pd.testing.assert_frame_equal(full.loc[alone.index], alone)
 
+
+def test_evaluate_refuses_a_model_fitted_on_holdout_batches():
+    """The holdout check only accepts a model whose recorded training batches exclude it."""
+    from bioreactor_decoding.modeling.evaluate import holdout_predictions
+    from bioreactor_decoding.modeling.models import PerDayNullModel
+
+    X, Y, split = labelled_data()
+    bundle = {
+        "model": PerDayNullModel().fit(X, Y),
+        "use_future_feeds": True,
+        "features": list(X.columns),
+        "fitted_batches": sorted(split["batch_id"].unique()),  # includes holdout batches
+    }
+    with pytest.raises(ValueError, match="holdout"):
+        holdout_predictions(bundle)

@@ -1,5 +1,13 @@
-# Data
-/data/
+# Data: never in git (challenge data). data/raw is versioned by DVC through data/raw.dvc
+# (a hash only); data/processed holds pipeline outputs (submissions). Rebuild: make pipeline
+/data/*
+!/data/*.dvc
+
+# Model artifacts: DVC pipeline outputs (models/*.pkl) and the stage-1 fit cache.
+# Reproduce with `make pipeline`. Metrics, CV tables, holdout predictions and figures under
+# reports/ ARE tracked in git, so results are reviewable without rerunning anything.
+/models/*.pkl
+/models/cache/
 
 # Mac OS-specific storage files
 .DS_Store
@@ -189,6 +197,3 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-# Trained model artefacts (regenerate with: python -m bioreactor_decoding.modeling.train)
-/models/*.pkl
-/models/cache/

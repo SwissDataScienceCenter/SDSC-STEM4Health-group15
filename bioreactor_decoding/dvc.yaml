@@ -1,0 +1,83 @@
+# Reproducible pipeline: data -> CV + fits -> holdout check -> figures / submissions.
+#   make pipeline  (= dvc repro)    rebuild whatever is out of date
+#   dvc repro train@xgb_raw         one model only
+#   make metrics   (= dvc metrics show), dvc metrics diff   CV and holdout MAPE
+#   dvc exp run --set-param xgb.max_depth=4                 try a hyperparameter change
+# Model selection uses the CV metrics only; the holdout metrics are the final reality check.
+vars:
+  - params.yaml
+
+stages:
+  train:
+    foreach: ${models}
+    do:
+      cmd: python -m bioreactor_decoding.modeling.train --model ${item}
+      params:
+        - seed
+        - features
+        - xgb
+        - hybrid_v3
+      deps:
+        - data/raw
+        - references/splits.csv
+        - bioreactor_decoding/dataset.py
+        - bioreactor_decoding/features.py
+        - bioreactor_decoding/modeling/models.py
+        - bioreactor_decoding/modeling/train.py
+        - bioreactor_decoding/modeling/mechanistic.py
+        - bioreactor_decoding/modeling/hybrid.py
+        - bioreactor_decoding/modeling/hybrid_v3.py
+      outs:
+        - models/${item}_dev.pkl
+        - models/${item}_all.pkl
+        - reports/cv/${item}.csv:
+            cache: false
+      metrics:
+        - reports/metrics/cv_${item}.json:
+            cache: false
+
+  evaluate:
+    foreach: ${models}
+    do:
+      cmd: python -m bioreactor_decoding.modeling.evaluate --model ${item}
+      deps:
+        - models/${item}_dev.pkl
+        - bioreactor_decoding/modeling/evaluate.py
+      outs:
+        - reports/holdout/${item}.csv:
+            cache: false
+      metrics:
+        - reports/metrics/${item}.json:
+            cache: false
+
+  submission:
+    foreach: ${models}
+    do:
+      cmd: python -m bioreactor_decoding.modeling.predict --model ${item}
+      deps:
+        - models/${item}_all.pkl
+        - data/raw
+        - bioreactor_decoding/modeling/predict.py
+      outs:
+        - data/processed/submission_${item}.csv
+
+  figures:
+    cmd: python -m bioreactor_decoding.plots all-figures
+    deps:
+      - reports/holdout
+      - bioreactor_decoding/plots.py
+    outs:
+      - reports/figures/null_model_constant.png:
+          cache: false
+      - reports/figures/null_model_per_day.png:
+          cache: false
+      - reports/figures/xgb_raw.png:
+          cache: false
+      - reports/figures/xgb_log_fold_change.png:
+          cache: false
+      - reports/figures/null_xgb_ensemble.png:
+          cache: false
+      - reports/figures/hybrid_v3.png:
+          cache: false
+      - reports/figures/PE_all_models.png:
+          cache: false
