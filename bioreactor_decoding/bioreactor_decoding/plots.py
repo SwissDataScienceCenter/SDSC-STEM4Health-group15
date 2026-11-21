@@ -145,6 +145,107 @@ def null_xgb_ensemble(output_path: Path = FIGURES_DIR / "null_xgb_ensemble.png")
     )
 
 
+# Categorical slots 1-3 of the validated palette (fixed order); one fixed colour per model.
+MODEL_COLORS = ["#2a78d6", "#eb6834", "#1baf7a"]
+PE_LIM = 15.0
+
+
+def plot_pe_per_batch(pe: dict[str, pd.DataFrame], scores: dict[str, dict], title: str):
+    """Grid of variables (rows) x holdout batches (columns) with one percent-error trace per model.
+
+    pe[name]: batch_id, elapsed_time, TARGETS holding signed percent errors,
+    100 * (predicted - actual) / actual (positive = overprediction).
+    The y axis is shared and fixed to [-PE_LIM, PE_LIM] with a zero line; errors beyond the
+    limits are drawn as a triangle on the top/bottom edge so they stay visible.
+    """
+    first = next(iter(pe.values()))
+    batches = sorted(first["batch_id"].unique(), key=_batch_number)
+    fig, axes = plt.subplots(
+        len(TARGETS),
+        len(batches),
+        sharex=True,
+        sharey=True,
+        figsize=(2.1 * len(batches) + 1, 9),
+        layout="constrained",
+        squeeze=False,
+    )
+    for ax in axes.flat:
+        ax.axhline(0, color=INK_MUTED, lw=1)
+    for (name, err), color in zip(pe.items(), MODEL_COLORS):
+        for j, b in enumerate(batches):
+            e = err[err["batch_id"] == b].sort_values("elapsed_time")
+            for i, c in enumerate(TARGETS):
+                ax = axes[i, j]
+                ax.plot(e["elapsed_time"], e[c], color=color, lw=1.6, marker="o", ms=2.5)
+                for sign, marker in ((1, "^"), (-1, "v")):
+                    off = e[sign * e[c] > PE_LIM]
+                    (marks,) = ax.plot(off["elapsed_time"], np.full(len(off), sign * PE_LIM),
+                                       marker, color=color, ms=6, clip_on=False)  # fmt: skip
+                    marks.set_in_layout(False)  # drawn on the edge; must not squeeze the layout
+    for j, b in enumerate(batches):
+        axes[0, j].set_title(b, fontsize=9, color=INK)
+        for i in range(len(TARGETS)):
+            _style_axis(axes[i, j])
+    axes[0, 0].set_ylim(-PE_LIM, PE_LIM)
+    axes[0, 0].set_yticks([-15, -10, -5, 0, 5, 10, 15])
+    for i, c in enumerate(TARGETS):
+        axes[i, 0].set_ylabel(f"{LABELS[c]}\nPE [%]", color=INK, fontsize=9)
+    axes[-1, 0].set_xticks([0, 4, 8, 12])
+    fig.supxlabel(
+        "Elapsed time [days]      ·      PE = (predicted − actual) / actual;  "
+        "above 0 = overprediction, below 0 = underprediction",
+        color=INK,
+        fontsize=10,
+    )
+    handles = [
+        plt.Line2D([], [], color=color, lw=1.6, marker="o", ms=2.5,
+                   label=f"{name}: {scores[name]['score']:.1f}%")
+        for name, color in zip(pe, MODEL_COLORS)
+    ]  # fmt: skip
+    handles.append(
+        plt.Line2D([], [], color=INK_MUTED, marker="^", ls="none", ms=6,
+                   label=f"|PE| > {PE_LIM:.0f}% (off scale)")
+    )  # fmt: skip
+    fig.legend(
+        handles=handles,
+        loc="outside upper right",
+        ncols=len(handles),
+        frameon=False,
+        fontsize=9,
+        title="Model: holdout MAPE (average of the 4 variables)",
+        title_fontsize=9,
+    )
+    fig.suptitle(title, x=0.01, ha="left", fontsize=12, color=INK)
+    return fig
+
+
+@app.command()
+def pe_all_models(output_path: Path = FIGURES_DIR / "PE_all_models.png"):
+    """Signed percent error of each model on the holdout batches (models fitted on dev)."""
+    models = {
+        "XGBoost": make_xgb_raw(),
+        "Per-day null": PerDayNullModel(),
+        "50/50 ensemble": make_null_xgb_ensemble(),
+    }
+    X, Y, split = labelled_data()
+    holdout = split["role"] == "holdout"
+    meta = split.loc[holdout, ["batch_id", "elapsed_time"]]
+    pe, scores = {}, {}
+    for name, model in models.items():
+        pred, scores[name] = holdout_check(model, X, Y, split)
+        actual = Y.loc[holdout, TARGETS]
+        err = 100 * (pred[TARGETS] - actual) / actual
+        pe[name] = pd.concat([meta, err], axis=1)
+        n_off = int((err.abs() > PE_LIM).to_numpy().sum())
+        logger.info(f"{name}: MAPE {scores[name]['score']:.1f}%, {n_off} points beyond ±{PE_LIM}%")
+
+    fig = plot_pe_per_batch(pe, scores, "Percent error on holdout batches")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, facecolor="white")
+    plt.close(fig)
+    logger.success(f"PE comparison -> {output_path}")
+
+
 @app.command()
 def all_figures():
     """Regenerate every holdout figure."""
@@ -152,6 +253,7 @@ def all_figures():
     per_day_null_model()
     xgb_raw()
     null_xgb_ensemble()
+    pe_all_models()
 
 
 if __name__ == "__main__":
