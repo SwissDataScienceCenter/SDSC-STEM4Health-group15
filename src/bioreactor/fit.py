@@ -21,13 +21,14 @@ import pandas as pd
 from scipy.optimize import least_squares
 
 from .data import STATES
-from .model import NAMES, P0, LB, UB, predict_at_obs
+from . import model as M
+from .model import NAMES, predict_at_obs   # NAMES is updated in place by model.set_options
 
 EPS = 1e-3
-STAGES = [  # (name, free parameters, states used in the residual)
-    ("cells",     ["mu_max", "KN", "Yxn", "Nb", "kd0", "kd1", "KdN", "klys"], ["vcd", "tcd"]),
-    ("substrate", ["Yxs", "ms", "Sb", "Ss", "Ks"],                            ["substrate"]),
-    ("byproduct", ["Ypx", "qPc", "KPc", "KI"],                                ["byproduct"]),
+STAGES = [  # (name, free parameters, states used in the residual); inactive ones are skipped
+    ("cells",     ["mu_max", "KN", "Yxn", "Nb", "kd0", "kd1", "KdN", "klys", "t_lag"], ["vcd", "tcd"]),
+    ("substrate", ["Yxs", "ms", "Sb", "Ss", "Ks"],                                     ["substrate"]),
+    ("byproduct", ["Ypx", "qPc", "KPc", "KI", "KPP", "K_mu", "Ybase"],                ["byproduct"]),
 ]
 
 
@@ -39,7 +40,7 @@ def initial_from_data(df, ids):
     s["day"] = s.elapsed_time.round().astype(int)
     w = s.pivot_table(index="batch_id", columns="day", values=STATES)
     v, S, P = w["vcd"], w["substrate"], w["byproduct"]
-    p = dict(zip(NAMES, P0))
+    p = dict(zip(NAMES, M.P0))
     # max specific growth: steepest early log-slope of VCD (days 0-2, no limitation yet)
     slope = max((np.log(v[1]) - np.log(v[0])).median(), (np.log(v[2]) - np.log(v[1])).median())
     p["mu_max"] = slope / 0.85            # Monod / nutrient factors < 1 at the start
@@ -58,7 +59,12 @@ def initial_from_data(df, ids):
         # substrate concentration of feed B / substrate feed [g/L], order-of-magnitude balance
         Sb=50.0, Ss=300.0,
     )
-    return np.clip(np.array([p[n] for n in NAMES]), LB * 1.01, UB * 0.99)
+    # optional terms (only used if active): ~0.5 d lag, plateau of the byproduct at ~2.5 g/L,
+    # consumption switching on once growth falls below ~0.2 /d
+    p.update(t_lag=0.5, KPP=2.0, K_mu=0.2, Ybase=50.0)
+    if "t_lag" in NAMES:   # early slope includes the lag -> true max. growth rate is higher
+        p["mu_max"] = p["mu_max"] / 0.8
+    return np.clip(np.array([p[n] for n in NAMES]), M.LB * 1.01, M.UB * 0.99)
 
 
 # ---------------------------------------------------------------- residuals / single fit
@@ -79,9 +85,12 @@ def residuals_full(p, arr, scale, residual="log", states=None):
 def fit(arr, scale, p_init=None, max_nfev=300, verbose=0, residual="log", loss="soft_l1",
         f_scale=0.1, free=None, states=None):
     """Fit the parameters in `free` (default: all) on `states` (default: all); others fixed."""
-    p_init = P0 if p_init is None else np.asarray(p_init, float)
-    free_idx = np.array([NAMES.index(n) for n in (free or NAMES)])
-    lo = np.log(LB[free_idx]); hi = np.log(UB[free_idx])
+    p_init = M.P0 if p_init is None else np.asarray(p_init, float)
+    if len(p_init) != len(NAMES):
+        raise ValueError(f"p_init has {len(p_init)} entries, active model ({M.model_tag()}) needs {len(NAMES)}")
+    free = [n for n in (free or NAMES) if n in NAMES]          # skip inactive optional parameters
+    free_idx = np.array([NAMES.index(n) for n in free])
+    lo = np.log(M.LB[free_idx]); hi = np.log(M.UB[free_idx])
     th0 = np.clip(np.log(p_init[free_idx]), lo + 1e-6, hi - 1e-6)
 
     def full(th):
@@ -101,7 +110,7 @@ def fit_staged(arr, scale, p_init=None, df=None, ids=None, max_nfev_stage=30, ma
     """1) data-based start, 2) block-wise stages, 3) joint fit (multi-start). Returns p, log."""
     t0 = time.time(); log = []
     if p_init is None:
-        p_init = initial_from_data(df, ids) if df is not None else P0.copy()
+        p_init = initial_from_data(df, ids) if df is not None else M.P0.copy()
     p = np.asarray(p_init, float).copy()
 
     def cost(pp):
@@ -118,7 +127,7 @@ def fit_staged(arr, scale, p_init=None, df=None, ids=None, max_nfev_stage=30, ma
     rng = np.random.default_rng(seed)
     best_p, best_c = None, np.inf
     for k in range(n_starts):
-        start = p if k == 0 else np.clip(p * np.exp(rng.normal(0, spread, len(p))), LB * 1.01, UB * 0.99)
+        start = p if k == 0 else np.clip(p * np.exp(rng.normal(0, spread, len(p))), M.LB * 1.01, M.UB * 0.99)
         pk, sol = fit(arr, scale, start, max_nfev=max_nfev_final, **kw)
         c = cost(pk)
         log.append((f"joint#{k}", c, time.time() - t0))

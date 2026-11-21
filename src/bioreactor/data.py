@@ -43,11 +43,14 @@ class BatchArrays:
     obs_idx: list[np.ndarray]   # per batch: grid indices of samples
     obs_t: list[np.ndarray]     # per batch: sample times
     obs_y: list[np.ndarray]     # per batch: (n, 4) observed states (NaN for test)
+    base: np.ndarray | None = None   # (K, B) base volume added per grid step (option base_flux)
 
 
 def to_arrays(df: pd.DataFrame, ids: list[str], dt: float = 0.005,
-              t_end: float = 13.2, sample_mask: str = "measured") -> BatchArrays:
-    """sample_mask: 'measured' -> rows with vcd; 'predict' -> rows with to_predict."""
+              t_end: float = 13.2, sample_mask: str = "measured", base: dict | None = None) -> BatchArrays:
+    """sample_mask: 'measured' -> rows with vcd; 'predict' -> rows with to_predict.
+    base: optional {batch_id: (sample_times, base_volume_per_interval)} from sensors.base_rate;
+          each interval's base is spread evenly over the grid steps of that interval."""
     t = np.arange(0.0, t_end + dt, dt)
     K, B = len(t), len(ids)
     feeds = np.zeros((K, B, 4))
@@ -70,4 +73,13 @@ def to_arrays(df: pd.DataFrame, ids: list[str], dt: float = 0.005,
         oi.append(np.round(s.elapsed_time.values / dt).astype(int))
         ot.append(s.elapsed_time.values)
         oy.append(s[STATES].values.astype(float))
-    return BatchArrays(ids, t, feeds, x0, v0, oi, ot, oy)
+    B_arr = None
+    if base is not None:
+        B_arr = np.zeros((K, B))
+        for j, b in enumerate(ids):
+            ts, inc = base[b]
+            for t0_, t1_, v in zip(ts[:-1], ts[1:], inc[1:]):
+                k = (t > t0_) & (t <= t1_)
+                if v > 0 and k.any():
+                    B_arr[k, j] = v / k.sum()
+    return BatchArrays(ids, t, feeds, x0, v0, oi, ot, oy, B_arr)
