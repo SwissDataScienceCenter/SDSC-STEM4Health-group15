@@ -13,6 +13,19 @@ Methods
   coefficients are interpretable ("+1 L feed B by day t -> +x % VCD").
 - "gbr":       gradient-boosted shallow trees per state across all days (non-linear).
 Corrections are clipped to +-MAX_CORR in log space (~ +-40 %) to avoid wild extrapolation.
+
+Extra, state-specific inputs (ResidualCorrector(extra=True)) - "feeds as measurements" and
+substrate mass balance. Feeds dosed right after a sample (next_*) are known for test batches
+(full feed schedule given) and may reflect the operator's / controller's reaction to that sample.
+- vcd, tcd:   feed B since the previous sample and right after the sample (absolute, per volume)
+              -> feed B may be dosed in proportion to the cell count
+- substrate:  feed B / substrate feed since previous sample and right after the sample, number of
+              substrate boluses so far, time since the last bolus, and (if mechanistic parameters
+              p are given) the substrate SUPPLIED by the feeds [g/L] = (Sb*F_B + Ss*F_S) / V
+              -> mass balance: what the feeds added is known exactly
+- byproduct:  feed C volume and number of feed-C events in the last day / right after the sample
+              -> feed C looks like on-demand dosing (e.g. base for pH control), i.e. a sensor of
+                 the acid (byproduct) the cells produce
 """
 from __future__ import annotations
 
@@ -39,33 +52,73 @@ def median_curve_preds(df, train_ids, arr):
 
 
 # ---------------------------------------------------------------- features
-def feature_table(df, arr, base_preds):
-    """One row per (batch, sample time): features, base prediction, observation (NaN for test)."""
+def feature_table(df, arr, base_preds, p=None):
+    """One row per (batch, sample time): features, base prediction, observation (NaN for test).
+    p: mechanistic parameter vector (optional) -> adds substrate-supply (mass balance) features."""
+    if p is not None:
+        from .model import NAMES
+        Sb, Ss = p[NAMES.index("Sb")], p[NAMES.index("Ss")]
     rows = []
     for j, b in enumerate(arr.ids):
         g = df[df.batch_id == b]
         d0 = arr.x0[j]
         vol = g[g.volume.notna()]
+        fe = {c: g[g[c].notna()][["elapsed_time", c]].to_numpy() for c in FEEDS}  # (time, amount)
+        ts = np.sort(arr.obs_t[j])
         for k, t in enumerate(arr.obs_t[j]):
+            i = int(np.searchsorted(ts, t))
+            t_prev = ts[i - 1] if i > 0 else 0.0
+            t_next = ts[i + 1] if i + 1 < len(ts) else np.inf
             before = g[g.elapsed_time < t - 1e-9]
             r = {"batch_id": b, "t": t, "day": int(round(t))}
-            r.update({f"d0_{s}": d0[i] for i, s in enumerate(STATES)})
+            r.update({f"d0_{s}": d0[i_] for i_, s in enumerate(STATES)})
             r.update({f"cum_{c}": before[c].sum() for c in FEEDS})
             r["cum_feed_total"] = sum(r[f"cum_{c}"] for c in FEEDS)
             last = before[before.elapsed_time >= t - 1.0]          # feeds in the last day
             r["lastday_feed_b"] = last["feed_b"].sum()
             r["lastday_feed_substrate"] = last["feed_substrate"].sum()
             r["volume_t"] = np.interp(t, vol.elapsed_time.values, vol.volume.values)
-            r.update({f"base_{s}": base_preds[j][k, i] for i, s in enumerate(STATES)})
-            r.update({f"obs_{s}": arr.obs_y[j][k, i] for i, s in enumerate(STATES)})
+            # --- feeds as measurements: since previous sample (int_) and right after (next_)
+            for c in FEEDS:
+                tt, aa = fe[c][:, 0], fe[c][:, 1]
+                r[f"int_{c}"] = aa[(tt > t_prev) & (tt < t)].sum()
+                r[f"next_{c}"] = aa[(tt >= t) & (tt < t_next)].sum()
+            r["next_feed_b_per_vol"] = r["next_feed_b"] / r["volume_t"]
+            r["int_feed_b_per_vol"] = r["int_feed_b"] / r["volume_t"]
+            tc = fe["feed_c"][:, 0]
+            r["nC_lastday"] = int(((tc >= t - 1.0) & (tc < t)).sum())
+            r["nC_next"] = int(((tc >= t) & (tc < t_next)).sum())
+            tsub = fe["feed_substrate"][:, 0]
+            r["n_subst_before"] = int((tsub < t).sum())
+            r["t_since_subst"] = t - tsub[tsub < t].max() if (tsub < t).any() else 0.0
+            # --- substrate mass balance: substrate supplied by the feeds [g/L]
+            if p is not None:
+                r["S_supply_int"] = (Sb * r["int_feed_b"] + Ss * r["int_feed_substrate"]) / r["volume_t"]
+                r["S_supply_next"] = (Sb * r["next_feed_b"] + Ss * r["next_feed_substrate"]) / r["volume_t"]
+                r["S_supply_cum"] = (Sb * r["cum_feed_b"] + Ss * r["cum_feed_substrate"]) / r["volume_t"]
+            r.update({f"base_{s}": base_preds[j][k, i_] for i_, s in enumerate(STATES)})
+            r.update({f"obs_{s}": arr.obs_y[j][k, i_] for i_, s in enumerate(STATES)})
             rows.append(r)
     return pd.DataFrame(rows)
 
 
-def feature_columns(state, method):
+EXTRA = {
+    "vcd":       ["int_feed_b", "next_feed_b", "int_feed_b_per_vol", "next_feed_b_per_vol"],
+    "tcd":       ["int_feed_b", "next_feed_b", "int_feed_b_per_vol", "next_feed_b_per_vol"],
+    "substrate": ["int_feed_b", "next_feed_b", "int_feed_substrate", "next_feed_substrate",
+                  "n_subst_before", "t_since_subst", "S_supply_int", "S_supply_next", "S_supply_cum"],
+    "byproduct": ["int_feed_c", "next_feed_c", "nC_lastday", "nC_next"],
+}
+
+
+def feature_columns(state, method, extra=False, available=None):
+    """Input columns for one state. extra=True adds the state-specific EXTRA features
+    (only those present in `available`, e.g. S_supply_* needs mechanistic parameters)."""
     cols = [f"d0_{s}" for s in STATES] + [f"cum_{c}" for c in FEEDS] + \
            ["cum_feed_total", "lastday_feed_b", "lastday_feed_substrate", "volume_t"] + \
            [f"logbase_{s}" for s in STATES]
+    if extra:
+        cols += [c for c in EXTRA[state] if available is None or c in available]
     if method == "gbr":
         cols = ["t"] + cols
     return cols
@@ -80,8 +133,9 @@ def _prep(F):
 
 # ---------------------------------------------------------------- corrector
 class ResidualCorrector:
-    def __init__(self, method="ridge_day", alphas=np.logspace(-1, 4, 26), gbr_kw=None):
+    def __init__(self, method="ridge_day", extra=False, alphas=np.logspace(-1, 4, 26), gbr_kw=None):
         self.method = method
+        self.extra = extra
         self.alphas = alphas
         self.gbr_kw = dict(n_estimators=300, learning_rate=0.03, max_depth=2,
                            min_samples_leaf=10, subsample=0.8, random_state=0)
@@ -94,8 +148,10 @@ class ResidualCorrector:
 
     def fit(self, F):
         F = _prep(F)
+        self.cols_ = {}
         for s in STATES:
-            cols = feature_columns(s, self.method)
+            cols = feature_columns(s, self.method, self.extra, F.columns)
+            self.cols_[s] = cols
             y = self._target(F, s)
             if self.method == "ridge_day":
                 for d, Fd in F.groupby("day"):
@@ -115,7 +171,10 @@ class ResidualCorrector:
         F = _prep(F)
         out = pd.DataFrame(0.0, index=F.index, columns=STATES)
         for s in STATES:
-            cols = feature_columns(s, self.method)
+            cols = self.cols_[s]          # exactly the columns used in fit
+            missing = [c for c in cols if c not in F.columns]
+            if missing:
+                raise ValueError(f"features missing for prediction: {missing} (pass the same p as in fit)")
             if self.method == "ridge_day":
                 for d, Fd in F.groupby("day"):
                     m = self.models.get((s, d))
@@ -136,7 +195,7 @@ class ResidualCorrector:
     def ridge_coefficients(self, state):
         """Standardised ridge coefficients per day (rows) for one state -> interpretation."""
         assert self.method == "ridge_day"
-        cols = feature_columns(state, self.method)
+        cols = self.cols_[state]
         rows = {d: m[-1].coef_ for (s, d), m in self.models.items() if s == state}
         return pd.DataFrame(rows, index=cols).T.sort_index()
 
