@@ -17,6 +17,7 @@ stages:
         - features
         - xgb
         - hybrid_v3
+        - hybrid_lite
       deps:
         - data/raw
         - references/splits.csv
@@ -27,6 +28,7 @@ stages:
         - bioreactor_decoding/modeling/mechanistic.py
         - bioreactor_decoding/modeling/hybrid.py
         - bioreactor_decoding/modeling/hybrid_v3.py
+        - bioreactor_decoding/modeling/lite.py
       outs:
         - models/${item}_dev.pkl
         - models/${item}_all.pkl
@@ -34,6 +36,8 @@ stages:
             cache: false
       metrics:
         - reports/metrics/cv_${item}.json:
+            cache: false
+        - reports/metrics/footprint_${item}.json:
             cache: false
 
   evaluate:
@@ -79,6 +83,8 @@ stages:
           cache: false
       - reports/figures/hybrid_v3.png:
           cache: false
+      - reports/figures/hybrid_lite.png:
+          cache: false
       - reports/figures/PE_all_models.png:
           cache: false
 
@@ -93,6 +99,11 @@ artifacts:
     type: model
     desc: Hybrid ODE (mechanistic + neural-net rate corrections) + soft-sensor stage 2, 50/50 blend
     labels: [hybrid, mechanistic, team-model]
+  hybrid_lite:
+    path: models/hybrid_lite_all.pkl
+    type: model
+    desc: Hybrid v3's stage 2 on a mechanistic stage 1 without neural nets (about 10x cheaper)
+    labels: [hybrid, mechanistic]
   null_xgb_ensemble:
     path: models/null_xgb_ensemble_all.pkl
     type: model

@@ -44,6 +44,7 @@ from sklearn.model_selection import GroupKFold
 from bioreactor_decoding.config import MODELS_DIR
 from bioreactor_decoding.dataset import FEEDS, RAW_PATH, TARGETS, load_tables
 from bioreactor_decoding.modeling.hybrid import HybridODEConfig, fit_hybrid_odes
+from bioreactor_decoding.modeling.lite import LiteODE, LiteODEConfig, build_arrays, fit_lite_odes
 from bioreactor_decoding.modeling.mechanistic import DT, build_batches
 
 T0_COLS = ["vcd0", "s0", "l0", "v0", "via0"]
@@ -61,6 +62,7 @@ DD_COLS = {
     "substrate": [*_DD, *BASE_COLS, *BOLUS_COLS],
     "byproduct": [*_DD, *BASE_COLS],
 }
+SIM_COLS = ["vcd0", "s0", "l0", "via0", "fb_tot_dev", "A_early"]  # batch descriptors (idea 1)
 N_DAYS = 14  # culture days 0..13
 
 
@@ -351,13 +353,66 @@ class DataDrivenBranch:
         )  # fmt: skip
 
 
-def finalize(hyb: pd.DataFrame, dd: pd.DataFrame, weight: float = 0.5) -> pd.DataFrame:
-    """Geometric blend of the two branches (weight on branch A); TCD floored at VCD."""
+class CellSimilarity:
+    """Optional third member for VCD/TCD ("idea 1" of improving_strategies.md; ported from
+    branch 06_hybrid_tr_based): a batch's correction curve log(observed / stage 1) is the
+    inverse-distance-weighted mean of the curves of its k most similar training batches.
+    Distance on SIM_COLS (t = 0 state, total feed-B deviation, early bolus), standardised with
+    the training batches' mean and sd. Substrate and byproduct pass through as stage 1."""
+
+    def __init__(self, k=5, cols=SIM_COLS):
+        self.k, self.cols = k, cols
+
+    def _desc(self, rows):
+        return rows.groupby("batch_id")[self.cols].first()
+
+    def fit(self, train):
+        D = self._desc(train)
+        self.mu, self.sd = D.mean(), D.std().replace(0, 1.0)
+        self.Dz = (D - self.mu) / self.sd
+        lr = train.assign(
+            **{f"lr_{v}": np.log(train["obs_" + v] / train["s1_" + v]) for v in ("vcd", "tcd")}
+        )
+        self.curves = {
+            v: lr.pivot_table(index="batch_id", columns="day", values=f"lr_{v}")
+            for v in ("vcd", "tcd")
+        }
+        return self
+
+    def predict(self, rows):
+        Dq = (self._desc(rows) - self.mu) / self.sd
+        out = pd.DataFrame({v: rows["s1_" + v].to_numpy() for v in TARGETS}, index=rows.index)
+        days_all = rows["day"].to_numpy()
+        for b, zq in Dq.iterrows():
+            d = np.sqrt(((self.Dz - zq) ** 2).sum(axis=1))
+            d = d.drop(b, errors="ignore").nsmallest(self.k)
+            w = 1.0 / (d + 0.1)
+            m = (rows["batch_id"] == b).to_numpy()
+            for v in ("vcd", "tcd"):
+                C = self.curves[v].loc[d.index]
+                corr = np.array([
+                    np.nansum(w * C[day]) / w[C[day].notna()].sum() if day in C else 0.0
+                    for day in days_all[m]
+                ])  # fmt: skip
+                out.loc[m, v] = rows.loc[m, "s1_" + v].to_numpy() * np.exp(corr)
+        return out
+
+
+def finalize(hyb, dd, weight: float = 0.5, sim=None, sim_weight: float = 0.0) -> pd.DataFrame:
+    """Geometric blend of the branches; TCD floored at VCD.
+
+    Branch A gets `weight`, branch B `1 - weight`. With a similarity member, VCD and TCD give it
+    `sim_weight` and scale the two branches by 1 - sim_weight.
+    """
     out = pd.DataFrame(
         {v: np.exp(weight * np.log(hyb[v].to_numpy()) + (1 - weight) * np.log(dd[v].to_numpy()))
          for v in TARGETS},
         index=hyb.index,
     )  # fmt: skip
+    if sim is not None and sim_weight > 0:
+        for v in ("vcd", "tcd"):
+            out[v] = np.exp((1 - sim_weight) * np.log(out[v].to_numpy())
+                            + sim_weight * np.log(sim[v].to_numpy()))  # fmt: skip
     out["tcd"] = np.maximum(out["tcd"], out["vcd"])
     return out
 
@@ -376,19 +431,24 @@ class HybridV3(BaseEstimator, RegressorMixin):
         stage-2 training rows (each from a stage-1 model that did not see that batch).
     n_bags : bootstrap bags of branch B.
     blend_weight : weight of branch A in the geometric blend (0.5 = the original).
-    stage1 : HybridODEConfig (None = the original settings).
+    stage1 : stage-1 settings: HybridODEConfig (hybrid ODE with neural nets; None = the
+        original settings) or LiteODEConfig (mechanistic ODE only, ~10x cheaper).
+    similarity_weight : weight of the optional similarity member for VCD/TCD (0 = off).
+    similarity_k : number of similar training batches it averages.
     n_jobs : processes for the stage-1 least-squares fits (None = all cores).
     cache_dir : joblib cache for stage-1 fits, keyed on the training data and config, so
         refitting on the same batches (figures, reruns) is free. None disables caching.
     """
 
-    def __init__(self, inner_folds=5, n_bags=10, blend_weight=0.5, stage1=None, n_jobs=None,
-                 raw_path=RAW_PATH, random_state=0,
-                 cache_dir=MODELS_DIR / "cache"):  # fmt: skip
+    def __init__(self, inner_folds=5, n_bags=10, blend_weight=0.5, stage1=None,
+                 similarity_weight=0.0, similarity_k=5, n_jobs=None, raw_path=RAW_PATH,
+                 random_state=0, cache_dir=MODELS_DIR / "cache"):  # fmt: skip  # fmt: skip
         self.inner_folds = inner_folds
         self.n_bags = n_bags
         self.blend_weight = blend_weight
         self.stage1 = stage1
+        self.similarity_weight = similarity_weight
+        self.similarity_k = similarity_k
         self.n_jobs = n_jobs
         self.raw_path = raw_path
         self.random_state = random_state
@@ -405,9 +465,21 @@ class HybridV3(BaseEstimator, RegressorMixin):
     def _batches(X):
         return list(dict.fromkeys(X["batch_id"]))
 
+    def _config(self):
+        return self.stage1 or HybridODEConfig()
+
+    def _build(self, ids, obs=None):
+        """Stage-1 inputs for `ids` in the format of the configured stage 1."""
+        samples, feeds = self._inputs()
+        if isinstance(self._config(), LiteODEConfig):
+            return build_arrays(samples, feeds, ids, obs)
+        return build_batches(samples, feeds, ids, obs)
+
     @staticmethod
-    def _steps(X):
-        return np.rint(X["t"].to_numpy() / DT).astype(int)
+    def _predict_s1(model, data, batch_idx, times) -> np.ndarray:
+        if isinstance(model, LiteODE):
+            return model.predict(data, batch_idx, times)
+        return model.predict(data, batch_idx, np.rint(np.asarray(times) / DT).astype(int))
 
     def _rows(self, X, s1: np.ndarray) -> pd.DataFrame:
         """Stage-2 design rows for X (same order), given stage-1 predictions s1 (n, 4)."""
@@ -428,6 +500,7 @@ class HybridV3(BaseEstimator, RegressorMixin):
         rows = key.merge(F.drop(columns="t"), on=["batch_id", "t_key"], how="left",
                          validate="one_to_one")  # fmt: skip
         rows["t"] = X["t"].to_numpy()
+        rows["fb_tot_dev"] = rows.groupby("batch_id")["fb_prev_dev"].transform("sum")
         for j, v in enumerate(TARGETS):
             rows["s1_" + v] = s1[:, j]
             rows["ls1_" + v] = np.log(s1[:, j])
@@ -444,32 +517,31 @@ class HybridV3(BaseEstimator, RegressorMixin):
 
     def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
         samples, feeds = self._inputs()
-        config = self.stage1 or HybridODEConfig()
+        config = self._config()
         n_jobs = self.n_jobs or os.cpu_count() or 1
         ids = self._batches(X)
-        obs = pd.DataFrame(
-            {"batch_id": X["batch_id"].to_numpy(), "elapsed_time": X["t"].to_numpy()}
-        )
+        times = X["t"].to_numpy(float)
+        obs = pd.DataFrame({"batch_id": X["batch_id"].to_numpy(), "elapsed_time": times})
         obs[TARGETS] = Y[TARGETS].to_numpy(float)
-        bs = build_batches(samples, feeds, ids, obs)
-        b_idx, steps = bs.obs["batch_idx"].to_numpy(int), bs.obs["step"].to_numpy(int)
+        bs = self._build(ids, obs)
+        b_idx = X["batch_id"].map({b: i for i, b in enumerate(ids)}).to_numpy()
 
         # Stage 1: one model on all training batches (for predict) plus one per inner fold
         # (for the stage-2 training features, each row predicted by a model blind to its batch).
         pos = np.arange(len(ids))
         inner = list(GroupKFold(self.inner_folds).split(pos, groups=pos))
         jobs = {"full": bs, **{f"inner{i}": bs.subset(tr) for i, (tr, _) in enumerate(inner)}}
-        fit = fit_hybrid_odes
+        fit = fit_lite_odes if isinstance(config, LiteODEConfig) else fit_hybrid_odes
+        self.stage1_from_cache_ = False
         if self.cache_dir is not None:
-            fit = joblib.Memory(self.cache_dir, verbose=0).cache(
-                fit_hybrid_odes, ignore=["n_jobs"]
-            )
+            fit = joblib.Memory(self.cache_dir, verbose=0).cache(fit, ignore=["n_jobs"])
+            self.stage1_from_cache_ = fit.check_call_in_cache(jobs, config, n_jobs)
         fitted = fit(jobs, config, n_jobs)
         self.stage1_ = fitted["full"]
         s1 = np.empty((len(X), len(TARGETS)))
         for i, (_, te) in enumerate(inner):
             m = np.isin(b_idx, te)
-            s1[m] = fitted[f"inner{i}"].predict(bs, b_idx[m], steps[m])
+            s1[m] = self._predict_s1(fitted[f"inner{i}"], bs, b_idx[m], times[m])
 
         # Pooled input statistics, learned from the training batches only.
         F = stamp_features(samples, feeds, ids)
@@ -481,22 +553,28 @@ class HybridV3(BaseEstimator, RegressorMixin):
             rows["obs_" + v] = Y[v].to_numpy(float)
         self.branch_a_ = HybridBranch().fit(rows)
         self.branch_b_ = DataDrivenBranch(self.n_bags, self.random_state).fit(rows)
+        self.similarity_ = None
+        if self.similarity_weight > 0:
+            self.similarity_ = CellSimilarity(self.similarity_k).fit(rows)
         return self
 
     def predict_stage1(self, X: pd.DataFrame) -> np.ndarray:
-        samples, feeds = self._inputs()
         ids = self._batches(X)
-        bs = build_batches(samples, feeds, ids)
         b_idx = X["batch_id"].map({b: i for i, b in enumerate(ids)}).to_numpy()
-        return self.stage1_.predict(bs, b_idx, self._steps(X))
+        return self._predict_s1(self.stage1_, self._build(ids), b_idx, X["t"].to_numpy(float))
 
-    def predict_branches(self, X: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def predict_members(self, X: pd.DataFrame) -> dict[str, pd.DataFrame]:
+        """Predictions of each blend member: branch A, branch B and (if on) similarity."""
         rows = self._rows(X, self.predict_stage1(X))
-        return self.branch_a_.predict(rows), self.branch_b_.predict(rows)
+        out = {"branch_a": self.branch_a_.predict(rows), "branch_b": self.branch_b_.predict(rows)}
+        if self.similarity_ is not None:
+            out["similarity"] = self.similarity_.predict(rows)
+        return out
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
-        a, b = self.predict_branches(X)
-        return finalize(a, b, self.blend_weight)
+        m = self.predict_members(X)
+        return finalize(m["branch_a"], m["branch_b"], self.blend_weight,
+                        m.get("similarity"), self.similarity_weight)  # fmt: skip
 
     def __getstate__(self):  # don't pickle the cached data tables
         state = super().__getstate__()

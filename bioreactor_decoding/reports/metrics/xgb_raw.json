@@ -5,5 +5,9 @@
     "substrate": 9.3592,
     "byproduct": 11.0532,
     "score": 8.3935
+  },
+  "footprint": {
+    "predict_seconds": 0.014,
+    "predict_seconds_per_batch": 0.0014
   }
 }

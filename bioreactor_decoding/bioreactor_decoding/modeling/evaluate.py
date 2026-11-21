@@ -10,6 +10,7 @@ The holdout is only ever *scored* here: nothing is fitted, and model selection u
 
 import json
 from pathlib import Path
+import time
 
 import joblib
 from loguru import logger
@@ -36,11 +37,13 @@ def holdout_predictions(bundle: dict) -> tuple[pd.DataFrame, dict[str, float]]:
         if "batch_id" in bundle["features"]
         else ["batch_id", *bundle["features"]]
     )
+    t0 = time.perf_counter()
     pred = bundle["model"].predict(X.loc[holdout, cols])
+    seconds = time.perf_counter() - t0
     scores = challenge_score(Y[holdout], pred)
     out = split.loc[holdout, ["batch_id", "elapsed_time"]].copy()
     out[TARGETS] = pred[TARGETS].to_numpy()
-    return out, scores
+    return out, {**scores, "predict_seconds": seconds}
 
 
 @app.command()
@@ -53,7 +56,15 @@ def main(
     out, scores = holdout_predictions(bundle)
     metrics_dir.mkdir(parents=True, exist_ok=True)
     predictions_dir.mkdir(parents=True, exist_ok=True)
-    metrics = {"holdout_mape": {k: round(v, 4) for k, v in scores.items()}}
+    seconds = scores.pop("predict_seconds")
+    n_batches = out["batch_id"].nunique()
+    metrics = {
+        "holdout_mape": {k: round(v, 4) for k, v in scores.items()},
+        "footprint": {
+            "predict_seconds": round(seconds, 3),
+            "predict_seconds_per_batch": round(seconds / n_batches, 4),
+        },
+    }
     (metrics_dir / f"{model}.json").write_text(json.dumps(metrics, indent=2) + "\n")
     out.to_csv(predictions_dir / f"{model}.csv", index=False)
     logger.success(

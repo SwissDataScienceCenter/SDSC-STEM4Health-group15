@@ -104,6 +104,7 @@ FIGURES = {
     "xgb_log_fold_change": ("xgb_log_fold_change.png", "XGBoost on log fold change", False),
     "null_xgb_ensemble": ("null_xgb_ensemble.png", "Null + XGBoost 50/50 ensemble", False),
     "hybrid_v3": ("hybrid_v3.png", "Hybrid v3", False),
+    "hybrid_lite": ("hybrid_lite.png", "Hybrid lite (v3 stage 2, mechanistic stage 1)", False),
 }
 
 

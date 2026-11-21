@@ -8,6 +8,7 @@ from bioreactor_decoding.modeling.models import FoldChangeRegressor, MedianFoldC
 from bioreactor_decoding.modeling.predict import fill_template
 from bioreactor_decoding.modeling import hybrid, mechanistic
 from bioreactor_decoding.modeling.hybrid_v3 import HybridV3, input_tables
+from bioreactor_decoding.modeling.lite import LiteODEConfig
 from bioreactor_decoding.modeling.train import MODELS, holdout_check, labelled_data
 
 pytestmark = pytest.mark.skipif(not RAW_PATH.exists(), reason="raw data not available")
@@ -88,16 +89,22 @@ def test_feature_columns_exclude_meta(tables):
 CHEAP_STAGE1 = hybrid.HybridODEConfig(mech_starts=1, seeds=1, mech_max_nfev=3, net_max_nfev=3)
 
 
-def _cheap_hybrid_v3():
-    """Same code path as hybrid_v3, with a stage 1 that is fitted only a few iterations."""
-    return HybridV3(inner_folds=2, n_bags=2, stage1=CHEAP_STAGE1)
+CHEAP = {  # same code paths as the real models, with stage-1 fits of only a few iterations
+    "hybrid_v3": lambda: HybridV3(inner_folds=2, n_bags=2, stage1=CHEAP_STAGE1),
+    "hybrid_v3_similarity": lambda: HybridV3(
+        inner_folds=2, n_bags=2, stage1=CHEAP_STAGE1, similarity_weight=1 / 3
+    ),
+    "hybrid_lite": lambda: HybridV3(
+        inner_folds=2, n_bags=2, stage1=LiteODEConfig(max_nfev_stage=2, max_nfev_final=2)
+    ),
+}
 
 
-@pytest.mark.parametrize("model_name", ["null_constant", "null_per_day", "xgb_raw", "xgb_log_fold_change", "null_xgb_ensemble", "hybrid_v3"])
+@pytest.mark.parametrize("model_name", ["null_constant", "null_per_day", "xgb_raw", "xgb_log_fold_change", "null_xgb_ensemble", *CHEAP])
 def test_holdout_never_used_for_fitting(model_name):
     """The model behind the holdout figures is fitted without any holdout data."""
     X, Y, split = labelled_data()
-    model = _cheap_hybrid_v3() if model_name == "hybrid_v3" else MODELS[model_name]()
+    model = CHEAP[model_name]() if model_name in CHEAP else MODELS[model_name]()
     holdout = split["role"] == "holdout"
     n = int(holdout.sum())
     rng = np.random.default_rng(0)

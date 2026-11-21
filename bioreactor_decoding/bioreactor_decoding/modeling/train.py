@@ -12,13 +12,17 @@ fitted is fitted on the training fold only.
 Outputs of `main --model NAME`:
   * reports/cv/NAME.csv            CV MAPE per fold and variable;
   * reports/metrics/cv_NAME.json   mean CV MAPE (DVC metrics);
+  * reports/metrics/footprint_NAME.json   time, memory and size of training (DVC metrics);
   * models/NAME_dev.pkl            fitted on dev only      -> holdout reality check;
   * models/NAME_all.pkl            fitted on dev + holdout -> submission (all 49 labelled batches).
 Hyperparameters come from params.yaml.
 """
 
 import json
+import os
 from pathlib import Path
+import resource
+import time
 
 import joblib
 from loguru import logger
@@ -32,6 +36,7 @@ from bioreactor_decoding.dataset import RAW_PATH, TARGETS, load_tables
 from bioreactor_decoding.features import build_features, feature_columns
 from bioreactor_decoding.modeling.hybrid import HybridODEConfig
 from bioreactor_decoding.modeling.hybrid_v3 import HybridV3
+from bioreactor_decoding.modeling.lite import LiteODEConfig
 from bioreactor_decoding.modeling.models import (
     AverageEnsemble,
     ConstantNullModel,
@@ -73,13 +78,22 @@ def make_null_xgb_ensemble(random_state: int | None = None) -> AverageEnsemble:
     return AverageEnsemble([PerDayNullModel(), make_xgb_raw(random_state)])
 
 
-def make_hybrid_v3(random_state: int | None = None) -> HybridV3:
-    """The team's hybrid v3 (hybrid ODE + soft sensors + 50/50 blend with boosting)."""
-    p = dict(load_params().get("hybrid_v3", {}))
+def _hybrid(section: str, stage1_cls, random_state):
+    p = dict(load_params().get(section, {}))
     stage1 = p.pop("stage1", {})
     if "outputs" in stage1:
         stage1 = {**stage1, "outputs": tuple(stage1["outputs"])}
-    return HybridV3(**p, stage1=HybridODEConfig(**stage1), random_state=_seed(random_state))
+    return HybridV3(**p, stage1=stage1_cls(**stage1), random_state=_seed(random_state))
+
+
+def make_hybrid_v3(random_state: int | None = None) -> HybridV3:
+    """The team's hybrid v3 (hybrid ODE + soft sensors + 50/50 blend with boosting)."""
+    return _hybrid("hybrid_v3", HybridODEConfig, random_state)
+
+
+def make_hybrid_lite(random_state: int | None = None) -> HybridV3:
+    """Hybrid v3's stage 2 on a light stage 1: a mechanistic ODE without neural nets."""
+    return _hybrid("hybrid_lite", LiteODEConfig, random_state)
 
 
 MODELS = {
@@ -90,6 +104,7 @@ MODELS = {
     "xgb_log_fold_change": make_xgb,
     "null_xgb_ensemble": make_null_xgb_ensemble,
     "hybrid_v3": make_hybrid_v3,
+    "hybrid_lite": make_hybrid_lite,
 }
 
 
@@ -147,7 +162,9 @@ def main(model: str = "xgb_raw", use_future_feeds: bool | None = None):
         f"holdout {split.loc[~dev, 'batch_id'].nunique()} batches (not used in CV)"
     )
 
+    t0 = time.perf_counter()
     cv = cross_validate({model: MODELS[model]()}, X, Y, split)
+    cv_seconds = time.perf_counter() - t0
     CV_DIR.mkdir(parents=True, exist_ok=True)
     cv.to_csv(CV_DIR / f"{model}.csv", index=False)
     mean = cv[[*TARGETS, "score"]].mean()
@@ -156,8 +173,13 @@ def main(model: str = "xgb_raw", use_future_feeds: bool | None = None):
     (METRICS_DIR / f"cv_{model}.json").write_text(json.dumps(metrics, indent=2) + "\n")
     logger.info(f"{model}: CV MAPE {mean['score']:.2f}% (sd over folds {cv['score'].std():.2f})")
 
+    footprint = {"cv_seconds": round(cv_seconds, 1), "cpu_count": os.cpu_count()}
     for scope, rows in {"dev": dev, "all": split["role"].isin(["dev", "holdout"])}.items():
+        t0 = time.perf_counter()
         fitted = MODELS[model]().fit(X[rows], Y[rows])
+        footprint[f"fit_{scope}_seconds"] = round(time.perf_counter() - t0, 1)
+        if hasattr(fitted, "stage1_from_cache_"):  # a cached stage 1 makes the fit look cheap
+            footprint[f"fit_{scope}_stage1_from_cache"] = bool(fitted.stage1_from_cache_)
         path = MODELS_DIR / f"{model}_{scope}.pkl"
         path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(
@@ -169,7 +191,18 @@ def main(model: str = "xgb_raw", use_future_feeds: bool | None = None):
             },
             path,
         )
+        footprint[f"model_{scope}_mb"] = round(path.stat().st_size / 1e6, 3)
         logger.success(f"{model} fitted on {scope} batches -> {path}")
+
+    # Peak resident memory of this process and of finished worker processes (ru_maxrss: KiB).
+    footprint["peak_rss_mb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
+    footprint["peak_rss_children_mb"] = round(
+        resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024, 1
+    )
+    (METRICS_DIR / f"footprint_{model}.json").write_text(
+        json.dumps({"footprint": footprint}, indent=2) + "\n"
+    )
+    logger.info(f"{model}: footprint {footprint}")
 
 
 if __name__ == "__main__":

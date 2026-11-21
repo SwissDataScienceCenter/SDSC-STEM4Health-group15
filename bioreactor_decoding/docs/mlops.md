@@ -100,6 +100,7 @@ if the hackathon's data rules allow it.
 | `xgb_log_fold_change` | XGBoost on log(y_t / y_0) | `modeling/models.py` |
 | `null_xgb_ensemble` | 50/50 average of `null_per_day` and `xgb_raw` | `modeling/models.py` |
 | `hybrid_v3` | Hybrid ODE + soft sensors + 50/50 blend with boosting (team model) | `modeling/hybrid_v3.py` |
+| `hybrid_lite` | `hybrid_v3`'s stage 2 on a mechanistic stage 1 without neural nets | `modeling/lite.py` |
 
 ### Hybrid v3
 
@@ -120,6 +121,27 @@ Stage 1 is expensive: about 15 minutes per fit on 16 cores, and six fits per v3 
 training batches plus five inner folds). Fits are cached in `models/cache/`, keyed on the
 training data and the stage-1 settings, so rerunning on the same batches (figures, reruns,
 stage-2 experiments) is quick.
+
+### Hybrid lite and the similarity member
+
+Both come from branch `06_hybrid_tr_based`:
+
+- **`hybrid_lite`** is `HybridV3` with a different stage 1: a mechanistic ODE with a latent
+  nutrient and no neural nets, fitted block by block (cells, substrate, byproduct) and then
+  jointly (`modeling/lite.py`). The port reproduces the original's simulator and starting values
+  exactly. One stage-1 fit takes about 75 s instead of about 15 minutes: stage 2 does most of the
+  work, so a cruder stage 1 costs little accuracy.
+- **The similarity member** (`similarity_weight` in `params.yaml`, off by default) is an optional
+  third blend member for VCD and TCD. It predicts a batch's correction curve from its k most
+  similar training batches at t = 0, with distances on descriptors standardised inside `fit`.
+
+## Resource footprint
+
+`train` writes `reports/metrics/footprint_<model>.json`: wall-clock time of the CV and of each
+final fit, peak memory, model size and the number of cores; `evaluate` adds the prediction time
+per batch. For the hybrid models it also records whether stage 1 came from the cache. A cached
+fit costs seconds, so read the time of a fit only together with that flag. Uncached, a
+`hybrid_v3` fit takes about 15 minutes on 16 cores.
 
 ## Adding a model
 

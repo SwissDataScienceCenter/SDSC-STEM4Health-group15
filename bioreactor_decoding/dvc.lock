@@ -17,8 +17,12 @@ stages:
       size: 10427
     - path: bioreactor_decoding/modeling/hybrid_v3.py
       hash: md5
-      md5: 5df5b82b17c2f666fa9a5e4848b4f09a
-      size: 22197
+      md5: 107923bf2bb9c2733f97bf8995632cc8
+      size: 26319
+    - path: bioreactor_decoding/modeling/lite.py
+      hash: md5
+      md5: a28de36bcaf37deaa9b3ad3d050a7f8d
+      size: 10747
     - path: bioreactor_decoding/modeling/mechanistic.py
       hash: md5
       md5: 00015b268a8842304b90fa4cf382dd76
@@ -29,8 +33,8 @@ stages:
       size: 6441
     - path: bioreactor_decoding/modeling/train.py
       hash: md5
-      md5: d2f1d4bb24ebc3d4a08cb57f0cc34da4
-      size: 7384
+      md5: ff9265943ba5459e0a115b6999b6c3b4
+      size: 8964
     - path: data/raw
       hash: md5
       md5: c63678383749d00b7e1a919659569e28.dir
@@ -44,10 +48,22 @@ stages:
       params.yaml:
         features:
           use_future_feeds: true
+        hybrid_lite:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            max_nfev_stage: 20
+            max_nfev_final: 60
+            f_scale: 0.1
         hybrid_v3:
           inner_folds: 5
           n_bags: 10
           blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
           stage1:
             variant: states
             outputs:
@@ -84,13 +100,17 @@ stages:
       hash: md5
       md5: 9d1c5a25264cf54644a7686785b9f94e
       size: 132
+    - path: reports/metrics/footprint_null_per_day.json
+      hash: md5
+      md5: 5299f2ddac88ea716472830ac4e7110c
+      size: 237
   evaluate@null_per_day:
     cmd: python -m bioreactor_decoding.modeling.evaluate --model null_per_day
     deps:
     - path: bioreactor_decoding/modeling/evaluate.py
       hash: md5
-      md5: 7da0f76a22a2ab89e215b5acfc51fce9
-      size: 2562
+      md5: 2bda97d09f15c70c2a10ecd53d096c1e
+      size: 2931
     - path: models/null_per_day_dev.pkl
       hash: md5
       md5: b9ccd6a9b58b19ef5bee4e2c5969b62c
@@ -102,8 +122,8 @@ stages:
       size: 12897
     - path: reports/metrics/null_per_day.json
       hash: md5
-      md5: eba036f47618b6624d5df7a958d080cf
-      size: 137
+      md5: 126b78081f31980f13d8e61b7a3fd274
+      size: 229
   submission@null_per_day:
     cmd: python -m bioreactor_decoding.modeling.predict --model null_per_day
     deps:
@@ -142,8 +162,12 @@ stages:
       size: 10427
     - path: bioreactor_decoding/modeling/hybrid_v3.py
       hash: md5
-      md5: 5df5b82b17c2f666fa9a5e4848b4f09a
-      size: 22197
+      md5: 107923bf2bb9c2733f97bf8995632cc8
+      size: 26319
+    - path: bioreactor_decoding/modeling/lite.py
+      hash: md5
+      md5: a28de36bcaf37deaa9b3ad3d050a7f8d
+      size: 10747
     - path: bioreactor_decoding/modeling/mechanistic.py
       hash: md5
       md5: 00015b268a8842304b90fa4cf382dd76
@@ -154,8 +178,8 @@ stages:
       size: 6441
     - path: bioreactor_decoding/modeling/train.py
       hash: md5
-      md5: d2f1d4bb24ebc3d4a08cb57f0cc34da4
-      size: 7384
+      md5: ff9265943ba5459e0a115b6999b6c3b4
+      size: 8964
     - path: data/raw
       hash: md5
       md5: c63678383749d00b7e1a919659569e28.dir
@@ -169,10 +193,22 @@ stages:
       params.yaml:
         features:
           use_future_feeds: true
+        hybrid_lite:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            max_nfev_stage: 20
+            max_nfev_final: 60
+            f_scale: 0.1
         hybrid_v3:
           inner_folds: 5
           n_bags: 10
           blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
           stage1:
             variant: states
             outputs:
@@ -209,13 +245,17 @@ stages:
       hash: md5
       md5: dca745369c62b300354e349c0163151e
       size: 134
+    - path: reports/metrics/footprint_xgb_raw.json
+      hash: md5
+      md5: 2a36b7ffcef0544b63f1a77dfda8980d
+      size: 236
   evaluate@xgb_raw:
     cmd: python -m bioreactor_decoding.modeling.evaluate --model xgb_raw
     deps:
     - path: bioreactor_decoding/modeling/evaluate.py
       hash: md5
-      md5: 7da0f76a22a2ab89e215b5acfc51fce9
-      size: 2562
+      md5: 2bda97d09f15c70c2a10ecd53d096c1e
+      size: 2931
     - path: models/xgb_raw_dev.pkl
       hash: md5
       md5: ed611395a455bb1634db071cc146281f
@@ -227,8 +267,8 @@ stages:
       size: 8327
     - path: reports/metrics/xgb_raw.json
       hash: md5
-      md5: 0e13ac8e4a0460e302b6af30020a5dcc
-      size: 137
+      md5: 131749af17a4ae134b8c5524e41f630a
+      size: 229
   submission@xgb_raw:
     cmd: python -m bioreactor_decoding.modeling.predict --model xgb_raw
     deps:
@@ -267,8 +307,12 @@ stages:
       size: 10427
     - path: bioreactor_decoding/modeling/hybrid_v3.py
       hash: md5
-      md5: 5df5b82b17c2f666fa9a5e4848b4f09a
-      size: 22197
+      md5: 107923bf2bb9c2733f97bf8995632cc8
+      size: 26319
+    - path: bioreactor_decoding/modeling/lite.py
+      hash: md5
+      md5: a28de36bcaf37deaa9b3ad3d050a7f8d
+      size: 10747
     - path: bioreactor_decoding/modeling/mechanistic.py
       hash: md5
       md5: 00015b268a8842304b90fa4cf382dd76
@@ -279,8 +323,8 @@ stages:
       size: 6441
     - path: bioreactor_decoding/modeling/train.py
       hash: md5
-      md5: d2f1d4bb24ebc3d4a08cb57f0cc34da4
-      size: 7384
+      md5: ff9265943ba5459e0a115b6999b6c3b4
+      size: 8964
     - path: data/raw
       hash: md5
       md5: c63678383749d00b7e1a919659569e28.dir
@@ -294,10 +338,22 @@ stages:
       params.yaml:
         features:
           use_future_feeds: true
+        hybrid_lite:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            max_nfev_stage: 20
+            max_nfev_final: 60
+            f_scale: 0.1
         hybrid_v3:
           inner_folds: 5
           n_bags: 10
           blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
           stage1:
             variant: states
             outputs:
@@ -334,6 +390,10 @@ stages:
       hash: md5
       md5: d789379e0f7bf596e9da54a0ec21cd1e
       size: 138
+    - path: reports/metrics/footprint_null_constant.json
+      hash: md5
+      md5: e8fff88d1b8fb9366321d086b37f84ed
+      size: 237
   submission@null_constant:
     cmd: python -m bioreactor_decoding.modeling.predict --model null_constant
     deps:
@@ -360,8 +420,8 @@ stages:
     deps:
     - path: bioreactor_decoding/modeling/evaluate.py
       hash: md5
-      md5: 7da0f76a22a2ab89e215b5acfc51fce9
-      size: 2562
+      md5: 2bda97d09f15c70c2a10ecd53d096c1e
+      size: 2931
     - path: models/null_constant_dev.pkl
       hash: md5
       md5: 63bdfb90b63bff80755e78dd7ce94aae
@@ -373,8 +433,8 @@ stages:
       size: 12737
     - path: reports/metrics/null_constant.json
       hash: md5
-      md5: eb52a94a9488018a18ce2b817e143d8e
-      size: 142
+      md5: 9bc925bdf1245477c877cef2f43dedce
+      size: 234
   train@xgb_log_fold_change:
     cmd: python -m bioreactor_decoding.modeling.train --model 
       xgb_log_fold_change
@@ -393,8 +453,12 @@ stages:
       size: 10427
     - path: bioreactor_decoding/modeling/hybrid_v3.py
       hash: md5
-      md5: 5df5b82b17c2f666fa9a5e4848b4f09a
-      size: 22197
+      md5: 107923bf2bb9c2733f97bf8995632cc8
+      size: 26319
+    - path: bioreactor_decoding/modeling/lite.py
+      hash: md5
+      md5: a28de36bcaf37deaa9b3ad3d050a7f8d
+      size: 10747
     - path: bioreactor_decoding/modeling/mechanistic.py
       hash: md5
       md5: 00015b268a8842304b90fa4cf382dd76
@@ -405,8 +469,8 @@ stages:
       size: 6441
     - path: bioreactor_decoding/modeling/train.py
       hash: md5
-      md5: d2f1d4bb24ebc3d4a08cb57f0cc34da4
-      size: 7384
+      md5: ff9265943ba5459e0a115b6999b6c3b4
+      size: 8964
     - path: data/raw
       hash: md5
       md5: c63678383749d00b7e1a919659569e28.dir
@@ -420,10 +484,22 @@ stages:
       params.yaml:
         features:
           use_future_feeds: true
+        hybrid_lite:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            max_nfev_stage: 20
+            max_nfev_final: 60
+            f_scale: 0.1
         hybrid_v3:
           inner_folds: 5
           n_bags: 10
           blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
           stage1:
             variant: states
             outputs:
@@ -460,14 +536,18 @@ stages:
       hash: md5
       md5: faa6a1ee3b4541f0800aac34ab5692d9
       size: 133
+    - path: reports/metrics/footprint_xgb_log_fold_change.json
+      hash: md5
+      md5: 64e1350d1812f7ecb4bd840ba312dce8
+      size: 236
   evaluate@xgb_log_fold_change:
     cmd: python -m bioreactor_decoding.modeling.evaluate --model 
       xgb_log_fold_change
     deps:
     - path: bioreactor_decoding/modeling/evaluate.py
       hash: md5
-      md5: 7da0f76a22a2ab89e215b5acfc51fce9
-      size: 2562
+      md5: 2bda97d09f15c70c2a10ecd53d096c1e
+      size: 2931
     - path: models/xgb_log_fold_change_dev.pkl
       hash: md5
       md5: aab7147b3461708cba6e75462eeb9fba
@@ -479,8 +559,8 @@ stages:
       size: 12896
     - path: reports/metrics/xgb_log_fold_change.json
       hash: md5
-      md5: d01ea3f5ce11ab0d849dbcb522d33528
-      size: 136
+      md5: eae8161aa227131e26121914f2056836
+      size: 228
   submission@xgb_log_fold_change:
     cmd: python -m bioreactor_decoding.modeling.predict --model 
       xgb_log_fold_change
@@ -520,8 +600,12 @@ stages:
       size: 10427
     - path: bioreactor_decoding/modeling/hybrid_v3.py
       hash: md5
-      md5: 5df5b82b17c2f666fa9a5e4848b4f09a
-      size: 22197
+      md5: 107923bf2bb9c2733f97bf8995632cc8
+      size: 26319
+    - path: bioreactor_decoding/modeling/lite.py
+      hash: md5
+      md5: a28de36bcaf37deaa9b3ad3d050a7f8d
+      size: 10747
     - path: bioreactor_decoding/modeling/mechanistic.py
       hash: md5
       md5: 00015b268a8842304b90fa4cf382dd76
@@ -532,8 +616,8 @@ stages:
       size: 6441
     - path: bioreactor_decoding/modeling/train.py
       hash: md5
-      md5: d2f1d4bb24ebc3d4a08cb57f0cc34da4
-      size: 7384
+      md5: ff9265943ba5459e0a115b6999b6c3b4
+      size: 8964
     - path: data/raw
       hash: md5
       md5: c63678383749d00b7e1a919659569e28.dir
@@ -547,10 +631,22 @@ stages:
       params.yaml:
         features:
           use_future_feeds: true
+        hybrid_lite:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            max_nfev_stage: 20
+            max_nfev_final: 60
+            f_scale: 0.1
         hybrid_v3:
           inner_folds: 5
           n_bags: 10
           blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
           stage1:
             variant: states
             outputs:
@@ -587,6 +683,10 @@ stages:
       hash: md5
       md5: 0f826a3499ff8b812cf84c1a24310c76
       size: 134
+    - path: reports/metrics/footprint_null_xgb_ensemble.json
+      hash: md5
+      md5: ef253670270ddc1c731a7d696cbccd85
+      size: 237
   submission@null_xgb_ensemble:
     cmd: python -m bioreactor_decoding.modeling.predict --model 
       null_xgb_ensemble
@@ -615,8 +715,8 @@ stages:
     deps:
     - path: bioreactor_decoding/modeling/evaluate.py
       hash: md5
-      md5: 7da0f76a22a2ab89e215b5acfc51fce9
-      size: 2562
+      md5: 2bda97d09f15c70c2a10ecd53d096c1e
+      size: 2931
     - path: models/null_xgb_ensemble_dev.pkl
       hash: md5
       md5: f48ea50c69f70ed1a4b7f98a5a77649b
@@ -628,8 +728,8 @@ stages:
       size: 12902
     - path: reports/metrics/null_xgb_ensemble.json
       hash: md5
-      md5: 94917fd29924708ab4531bab131a3983
-      size: 136
+      md5: 66f3a554ea2e7b61f0a49c313e8b5397
+      size: 228
   train@hybrid_v3:
     cmd: python -m bioreactor_decoding.modeling.train --model hybrid_v3
     deps:
@@ -647,8 +747,12 @@ stages:
       size: 10427
     - path: bioreactor_decoding/modeling/hybrid_v3.py
       hash: md5
-      md5: 5df5b82b17c2f666fa9a5e4848b4f09a
-      size: 22197
+      md5: 107923bf2bb9c2733f97bf8995632cc8
+      size: 26319
+    - path: bioreactor_decoding/modeling/lite.py
+      hash: md5
+      md5: a28de36bcaf37deaa9b3ad3d050a7f8d
+      size: 10747
     - path: bioreactor_decoding/modeling/mechanistic.py
       hash: md5
       md5: 00015b268a8842304b90fa4cf382dd76
@@ -659,8 +763,8 @@ stages:
       size: 6441
     - path: bioreactor_decoding/modeling/train.py
       hash: md5
-      md5: d2f1d4bb24ebc3d4a08cb57f0cc34da4
-      size: 7384
+      md5: ff9265943ba5459e0a115b6999b6c3b4
+      size: 8964
     - path: data/raw
       hash: md5
       md5: c63678383749d00b7e1a919659569e28.dir
@@ -674,10 +778,22 @@ stages:
       params.yaml:
         features:
           use_future_feeds: true
+        hybrid_lite:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            max_nfev_stage: 20
+            max_nfev_final: 60
+            f_scale: 0.1
         hybrid_v3:
           inner_folds: 5
           n_bags: 10
           blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
           stage1:
             variant: states
             outputs:
@@ -700,12 +816,12 @@ stages:
     outs:
     - path: models/hybrid_v3_all.pkl
       hash: md5
-      md5: 1f04237ecd8fc89b67c32a823e46766f
-      size: 14491944
+      md5: a8d52a2fbd72cb7222d58851e9ceeb48
+      size: 14492023
     - path: models/hybrid_v3_dev.pkl
       hash: md5
-      md5: 1fd79c9996784f4d1476ec90e688165d
-      size: 14156598
+      md5: f1c1b2b9afbb822948118bd3c3408e1a
+      size: 14156677
     - path: reports/cv/hybrid_v3.csv
       hash: md5
       md5: 7f6e68334cc212be33ee8449783e9e96
@@ -714,17 +830,21 @@ stages:
       hash: md5
       md5: 60a4a8fd33601ec3e33d6596f1faf425
       size: 131
+    - path: reports/metrics/footprint_hybrid_v3.json
+      hash: md5
+      md5: 6e3d52946cbb4f09e98c33d49bcd2af2
+      size: 320
   evaluate@hybrid_v3:
     cmd: python -m bioreactor_decoding.modeling.evaluate --model hybrid_v3
     deps:
     - path: bioreactor_decoding/modeling/evaluate.py
       hash: md5
-      md5: 7da0f76a22a2ab89e215b5acfc51fce9
-      size: 2562
+      md5: 2bda97d09f15c70c2a10ecd53d096c1e
+      size: 2931
     - path: models/hybrid_v3_dev.pkl
       hash: md5
-      md5: 1fd79c9996784f4d1476ec90e688165d
-      size: 14156598
+      md5: f1c1b2b9afbb822948118bd3c3408e1a
+      size: 14156677
     outs:
     - path: reports/holdout/hybrid_v3.csv
       hash: md5
@@ -732,8 +852,8 @@ stages:
       size: 12905
     - path: reports/metrics/hybrid_v3.json
       hash: md5
-      md5: 220818ad6a0290c271106894bbae1d53
-      size: 136
+      md5: 259b3f0061ef1649df60ae6fb6640b18
+      size: 228
   submission@hybrid_v3:
     cmd: python -m bioreactor_decoding.modeling.predict --model hybrid_v3
     deps:
@@ -748,8 +868,8 @@ stages:
       nfiles: 3
     - path: models/hybrid_v3_all.pkl
       hash: md5
-      md5: 1f04237ecd8fc89b67c32a823e46766f
-      size: 14491944
+      md5: a8d52a2fbd72cb7222d58851e9ceeb48
+      size: 14492023
     outs:
     - path: data/processed/submission_hybrid_v3.csv
       hash: md5
@@ -760,18 +880,22 @@ stages:
     deps:
     - path: bioreactor_decoding/plots.py
       hash: md5
-      md5: 8ed2754139e3126aaaa9865d5576523d
-      size: 10545
+      md5: 3006d1b2261030b1d6d75751a1737252
+      size: 10641
     - path: reports/holdout
       hash: md5
-      md5: 6b88173ce43992acc573fa7c8899b966.dir
-      size: 72664
-      nfiles: 6
+      md5: 37b8c0feefdf4ca6159d742242518b7b.dir
+      size: 85583
+      nfiles: 7
     outs:
     - path: reports/figures/PE_all_models.png
       hash: md5
       md5: 261bb9179d4e80250c280f00994ed13e
       size: 1231003
+    - path: reports/figures/hybrid_lite.png
+      hash: md5
+      md5: 94db610f49c36a640900495a66334a1b
+      size: 602882
     - path: reports/figures/hybrid_v3.png
       hash: md5
       md5: c75d1bece3b672b15030b3f48e458b84
@@ -796,3 +920,148 @@ stages:
       hash: md5
       md5: e710aed87163f735e69a7ca871dfd067
       size: 604970
+  train@hybrid_lite:
+    cmd: python -m bioreactor_decoding.modeling.train --model hybrid_lite
+    deps:
+    - path: bioreactor_decoding/dataset.py
+      hash: md5
+      md5: 753c27f3c607eccb485688896ee7ff2b
+      size: 4554
+    - path: bioreactor_decoding/features.py
+      hash: md5
+      md5: c6b081cdb5c72c10099360b7dc3c3b6c
+      size: 3820
+    - path: bioreactor_decoding/modeling/hybrid.py
+      hash: md5
+      md5: 88f711baa37c492e259c170c6c3cdc76
+      size: 10427
+    - path: bioreactor_decoding/modeling/hybrid_v3.py
+      hash: md5
+      md5: 107923bf2bb9c2733f97bf8995632cc8
+      size: 26319
+    - path: bioreactor_decoding/modeling/lite.py
+      hash: md5
+      md5: a28de36bcaf37deaa9b3ad3d050a7f8d
+      size: 10747
+    - path: bioreactor_decoding/modeling/mechanistic.py
+      hash: md5
+      md5: 00015b268a8842304b90fa4cf382dd76
+      size: 12218
+    - path: bioreactor_decoding/modeling/models.py
+      hash: md5
+      md5: 4160929ddce71ab7af13631d187ff123
+      size: 6441
+    - path: bioreactor_decoding/modeling/train.py
+      hash: md5
+      md5: ff9265943ba5459e0a115b6999b6c3b4
+      size: 8964
+    - path: data/raw
+      hash: md5
+      md5: c63678383749d00b7e1a919659569e28.dir
+      size: 217699
+      nfiles: 3
+    - path: references/splits.csv
+      hash: md5
+      md5: f1f4c7328b64a3ec0e8c9357ceacbca0
+      size: 938
+    params:
+      params.yaml:
+        features:
+          use_future_feeds: true
+        hybrid_lite:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            max_nfev_stage: 20
+            max_nfev_final: 60
+            f_scale: 0.1
+        hybrid_v3:
+          inner_folds: 5
+          n_bags: 10
+          blend_weight: 0.5
+          similarity_weight: 0.0
+          similarity_k: 5
+          stage1:
+            variant: states
+            outputs:
+            - mu
+            - lac
+            hidden: 4
+            lam: 0.01
+            seeds: 4
+            mech_starts: 6
+            mech_max_nfev: 300
+            net_max_nfev: 150
+        seed: 0
+        xgb:
+          n_estimators: 400
+          learning_rate: 0.03
+          max_depth: 3
+          min_child_weight: 3
+          subsample: 0.8
+          colsample_bytree: 0.8
+    outs:
+    - path: models/hybrid_lite_all.pkl
+      hash: md5
+      md5: 8b3f933d9d96b86f33d1c9074cbff060
+      size: 14494807
+    - path: models/hybrid_lite_dev.pkl
+      hash: md5
+      md5: c1c3e19142129fb07c44ac3d7ee01f98
+      size: 14166069
+    - path: reports/cv/hybrid_lite.csv
+      hash: md5
+      md5: dad15842f959dd61219423dd96c177ad
+      size: 567
+    - path: reports/metrics/cv_hybrid_lite.json
+      hash: md5
+      md5: 2e8d635353dbc69e974b912b3ec5ad75
+      size: 131
+    - path: reports/metrics/footprint_hybrid_lite.json
+      hash: md5
+      md5: e1fa0565f013eb6d1e99c4a41a932c73
+      size: 327
+  evaluate@hybrid_lite:
+    cmd: python -m bioreactor_decoding.modeling.evaluate --model hybrid_lite
+    deps:
+    - path: bioreactor_decoding/modeling/evaluate.py
+      hash: md5
+      md5: 2bda97d09f15c70c2a10ecd53d096c1e
+      size: 2931
+    - path: models/hybrid_lite_dev.pkl
+      hash: md5
+      md5: c1c3e19142129fb07c44ac3d7ee01f98
+      size: 14166069
+    outs:
+    - path: reports/holdout/hybrid_lite.csv
+      hash: md5
+      md5: 2e46dbb117252ae1b3b01a04967cd81d
+      size: 12919
+    - path: reports/metrics/hybrid_lite.json
+      hash: md5
+      md5: 392ced1f77660a95e631f604b032e4a8
+      size: 228
+  submission@hybrid_lite:
+    cmd: python -m bioreactor_decoding.modeling.predict --model hybrid_lite
+    deps:
+    - path: bioreactor_decoding/modeling/predict.py
+      hash: md5
+      md5: 0a97bec5a8fb54b2dd2132113f9b0c89
+      size: 2731
+    - path: data/raw
+      hash: md5
+      md5: c63678383749d00b7e1a919659569e28.dir
+      size: 217699
+      nfiles: 3
+    - path: models/hybrid_lite_all.pkl
+      hash: md5
+      md5: 8b3f933d9d96b86f33d1c9074cbff060
+      size: 14494807
+    outs:
+    - path: data/processed/submission_hybrid_lite.csv
+      hash: md5
+      md5: 4f3697a7cca756ea9decaff8acf0afa3
+      size: 14640

@@ -11,6 +11,7 @@ models:
   - xgb_log_fold_change
   - null_xgb_ensemble
   - hybrid_v3
+  - hybrid_lite
 
 seed: 0
 
@@ -33,6 +34,8 @@ hybrid_v3:
   inner_folds: 5      # batch-wise folds inside fit for the stage-2 (stacking) features
   n_bags: 10          # bootstrap bags of the data-driven branch
   blend_weight: 0.5   # weight of the hybrid branch in the geometric blend
+  similarity_weight: 0.0  # optional similarity member for VCD/TCD (0 = off; idea 1)
+  similarity_k: 5
   stage1:             # hybrid ODE (mechanistic model + rate-correcting neural nets)
     variant: states
     outputs: [mu, lac]  # rates the networks correct: growth and lactate
@@ -42,3 +45,16 @@ hybrid_v3:
     mech_starts: 6
     mech_max_nfev: 300
     net_max_nfev: 150
+
+# hybrid_v3's stage 2 on a light stage 1 (mechanistic ODE without neural nets, staged fit),
+# ported from branch 06_hybrid_tr_based. About 10x cheaper to fit than hybrid_v3.
+hybrid_lite:
+  inner_folds: 5
+  n_bags: 10
+  blend_weight: 0.5
+  similarity_weight: 0.0
+  similarity_k: 5
+  stage1:
+    max_nfev_stage: 20
+    max_nfev_final: 60
+    f_scale: 0.1
