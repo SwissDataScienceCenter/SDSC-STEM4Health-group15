@@ -48,7 +48,10 @@ def main(
     feats = build_features(samples, feeds, bundle["use_future_feeds"])
     feats = feats.loc[samples.loc[feats.index, "to_predict"]]
 
-    pred = bundle["model"].predict(feats[bundle["features"]])
+    cols = bundle["features"]
+    if "batch_id" not in cols:  # bundles saved before X carried batch_id
+        cols = ["batch_id", *cols]
+    pred = bundle["model"].predict(feats[cols])
     pred[["batch_id", "elapsed_time"]] = feats[["batch_id", "elapsed_time"]]
 
     submission = fill_template(load_template(template_path), pred)

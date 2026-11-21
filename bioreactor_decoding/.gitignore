@@ -191,3 +191,4 @@ cython_debug/
 .pypirc
 # Trained model artefacts (regenerate with: python -m bioreactor_decoding.modeling.train)
 /models/*.pkl
+/models/cache/

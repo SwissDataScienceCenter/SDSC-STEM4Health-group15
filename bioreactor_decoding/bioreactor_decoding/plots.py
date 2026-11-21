@@ -19,6 +19,7 @@ from bioreactor_decoding.modeling.models import ConstantNullModel, PerDayNullMod
 from bioreactor_decoding.modeling.train import (
     holdout_check,
     labelled_data,
+    make_hybrid_v3,
     make_null_xgb_ensemble,
     make_xgb_raw,
 )
@@ -145,8 +146,14 @@ def null_xgb_ensemble(output_path: Path = FIGURES_DIR / "null_xgb_ensemble.png")
     )
 
 
-# Categorical slots 1-3 of the validated palette (fixed order); one fixed colour per model.
-MODEL_COLORS = ["#2a78d6", "#eb6834", "#1baf7a"]
+@app.command()
+def hybrid_v3(output_path: Path = FIGURES_DIR / "hybrid_v3.png"):
+    """The team's hybrid v3 (hybrid ODE + soft sensors + 50/50 blend with boosting)."""
+    holdout_figure(make_hybrid_v3(), "Hybrid v3 vs. holdout batches", output_path)
+
+
+# Categorical slots 1-4 of the validated palette (fixed order); one fixed colour per model.
+MODEL_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
 PE_LIM = 15.0
 
 
@@ -226,6 +233,7 @@ def pe_all_models(output_path: Path = FIGURES_DIR / "PE_all_models.png"):
         "XGBoost": make_xgb_raw(),
         "Per-day null": PerDayNullModel(),
         "50/50 ensemble": make_null_xgb_ensemble(),
+        "Hybrid v3": make_hybrid_v3(),
     }
     X, Y, split = labelled_data()
     holdout = split["role"] == "holdout"
@@ -253,6 +261,7 @@ def all_figures():
     per_day_null_model()
     xgb_raw()
     null_xgb_ensemble()
+    hybrid_v3()
     pe_all_models()
 
 

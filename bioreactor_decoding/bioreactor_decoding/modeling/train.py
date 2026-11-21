@@ -15,6 +15,7 @@ Two final models are saved:
 """
 
 from pathlib import Path
+from typing import Annotated
 
 import joblib
 from loguru import logger
@@ -26,6 +27,7 @@ from xgboost import XGBRegressor
 from bioreactor_decoding.config import MODELS_DIR, REPORTS_DIR
 from bioreactor_decoding.dataset import RAW_PATH, TARGETS, load_tables
 from bioreactor_decoding.features import build_features, feature_columns
+from bioreactor_decoding.modeling.hybrid_v3 import HybridV3
 from bioreactor_decoding.modeling.models import (
     AverageEnsemble,
     ConstantNullModel,
@@ -68,6 +70,11 @@ def make_null_xgb_ensemble(random_state: int = 0) -> AverageEnsemble:
     return AverageEnsemble([PerDayNullModel(), make_xgb_raw(random_state)])
 
 
+def make_hybrid_v3(random_state: int = 0) -> HybridV3:
+    """The team's hybrid v3 (hybrid ODE + soft sensors + 50/50 blend with boosting)."""
+    return HybridV3(random_state=random_state)
+
+
 MODELS = {
     "null_constant": ConstantNullModel,
     "null_per_day": PerDayNullModel,
@@ -75,16 +82,21 @@ MODELS = {
     "xgb_raw": make_xgb_raw,
     "xgb_log_fold_change": make_xgb,
     "null_xgb_ensemble": make_null_xgb_ensemble,
+    "hybrid_v3": make_hybrid_v3,
 }
 
 
 def labelled_data(use_future_feeds: bool = True, raw_path: Path = RAW_PATH):
-    """Features X, targets Y and split info (batch_id, role, fold) for dev + holdout rows."""
+    """Features X, targets Y and split info (batch_id, role, fold) for dev + holdout rows.
+
+    X carries `batch_id` next to the features: models that need a batch's whole feed and volume
+    log (hybrid_v3) look it up by batch; the other estimators drop it before fitting.
+    """
     samples, feeds = load_tables(raw_path)
     feats = build_features(samples, feeds, use_future_feeds)
     split = samples.loc[feats.index, ["batch_id", "elapsed_time", "role", "fold"]]
     keep = split["role"].isin(["dev", "holdout"])
-    X = feats.loc[keep, feature_columns(feats)]
+    X = feats.loc[keep, ["batch_id", *feature_columns(feats)]]
     Y = samples.loc[X.index, TARGETS]
     return X, Y, split.loc[keep]
 
@@ -121,6 +133,9 @@ def main(
     model: str = "xgb_raw",
     use_future_feeds: bool = True,
     cv_path: Path = REPORTS_DIR / "cv_scores.csv",
+    only: Annotated[
+        list[str] | None, typer.Option(help="Cross-validate only these models (default: all)")
+    ] = None,
 ):
     X, Y, split = labelled_data(use_future_feeds)
     dev = split["role"] == "dev"
@@ -129,7 +144,11 @@ def main(
         f"holdout: {split.loc[~dev, 'batch_id'].nunique()} batches (not used in CV)"
     )
 
-    cv = cross_validate({name: make() for name, make in MODELS.items()}, X, Y, split)
+    names = only or list(MODELS)
+    cv = cross_validate({name: MODELS[name]() for name in names}, X, Y, split)
+    if only and cv_path.exists():  # keep the other models' rows from earlier runs
+        old = pd.read_csv(cv_path)
+        cv = pd.concat([old[~old["model"].isin(names)], cv], ignore_index=True)
     cv_path.parent.mkdir(parents=True, exist_ok=True)
     cv.to_csv(cv_path, index=False)
     summary = cv.groupby("model", sort=False)[[*TARGETS, "score"]].agg(["mean", "std"]).round(2)

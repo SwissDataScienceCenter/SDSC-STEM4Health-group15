@@ -16,6 +16,7 @@ import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin, clone
 
 from bioreactor_decoding.dataset import TARGETS
+from bioreactor_decoding.features import META_COLS
 
 
 def mape(y_true, y_pred) -> float:
@@ -29,6 +30,11 @@ def challenge_score(y_true: pd.DataFrame, y_pred: pd.DataFrame) -> dict[str, flo
     scores = {c: mape(y_true[c], y_pred[c]) for c in TARGETS}
     scores["score"] = float(np.mean([scores[c] for c in TARGETS]))
     return scores
+
+
+def _numeric(X: pd.DataFrame) -> pd.DataFrame:
+    """Feature columns only: drops identifiers such as batch_id that X carries along."""
+    return X.drop(columns=META_COLS, errors="ignore")
 
 
 def _log_fold_change(X: pd.DataFrame, Y: pd.DataFrame, target: str) -> np.ndarray:
@@ -46,11 +52,13 @@ class PerTargetRegressor(BaseEstimator, RegressorMixin):
         self.targets = targets
 
     def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
-        self.models_ = {c: clone(self.estimator).fit(X, Y[c]) for c in self.targets}
+        Xn = _numeric(X)
+        self.models_ = {c: clone(self.estimator).fit(Xn, Y[c]) for c in self.targets}
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
-        return pd.DataFrame({c: m.predict(X) for c, m in self.models_.items()}, index=X.index)
+        Xn = _numeric(X)
+        return pd.DataFrame({c: m.predict(Xn) for c, m in self.models_.items()}, index=X.index)
 
 
 class FoldChangeRegressor(BaseEstimator, RegressorMixin):
@@ -61,14 +69,18 @@ class FoldChangeRegressor(BaseEstimator, RegressorMixin):
         self.targets = targets
 
     def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
+        Xn = _numeric(X)
         self.models_ = {
-            c: clone(self.estimator).fit(X, _log_fold_change(X, Y, c)) for c in self.targets
+            c: clone(self.estimator).fit(Xn, _log_fold_change(X, Y, c)) for c in self.targets
         }
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(
-            {c: np.exp(m.predict(X) + X[f"log0_{c}"].to_numpy()) for c, m in self.models_.items()},
+            {
+                c: np.exp(m.predict(_numeric(X)) + X[f"log0_{c}"].to_numpy())
+                for c, m in self.models_.items()
+            },
             index=X.index,
         )
 
