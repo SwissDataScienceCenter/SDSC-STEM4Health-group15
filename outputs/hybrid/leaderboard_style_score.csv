@@ -1,0 +1,7 @@
+model,split,vcd,tcd,substrate,byproduct,leaderboard_score
+mechanistic,held-out (CV),9.7,9.56,14.66,14.15,12.02
+mechanistic,in-sample fit,9.57,9.38,13.78,13.71,11.61
+states,held-out (CV),8.25,8.09,10.82,11.94,9.78
+states,in-sample fit,8.05,7.81,9.36,10.64,8.97
+states_feeds,held-out (CV),8.44,8.31,13.25,12.61,10.65
+states_feeds,in-sample fit,7.73,7.52,9.34,9.74,8.58
