@@ -96,6 +96,11 @@ def make_hybrid_lite(random_state: int | None = None) -> HybridV3:
     return _hybrid("hybrid_lite", LiteODEConfig, random_state)
 
 
+def make_hybrid_blend(random_state: int | None = None) -> AverageEnsemble:
+    """Average of hybrid_v3 and hybrid_lite: same stage 2, different stage 1."""
+    return AverageEnsemble([make_hybrid_v3(random_state), make_hybrid_lite(random_state)])
+
+
 MODELS = {
     "null_constant": ConstantNullModel,
     "null_per_day": PerDayNullModel,
@@ -105,6 +110,7 @@ MODELS = {
     "null_xgb_ensemble": make_null_xgb_ensemble,
     "hybrid_v3": make_hybrid_v3,
     "hybrid_lite": make_hybrid_lite,
+    "hybrid_blend": make_hybrid_blend,
 }
 
 

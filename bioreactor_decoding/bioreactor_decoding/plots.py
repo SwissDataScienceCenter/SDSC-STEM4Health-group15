@@ -105,6 +105,7 @@ FIGURES = {
     "null_xgb_ensemble": ("null_xgb_ensemble.png", "Null + XGBoost 50/50 ensemble", False),
     "hybrid_v3": ("hybrid_v3.png", "Hybrid v3", False),
     "hybrid_lite": ("hybrid_lite.png", "Hybrid lite (v3 stage 2, mechanistic stage 1)", False),
+    "hybrid_blend": ("hybrid_blend.png", "Average of hybrid v3 and hybrid lite", False),
 }
 
 

@@ -12,6 +12,7 @@ models:
   - null_xgb_ensemble
   - hybrid_v3
   - hybrid_lite
+  - hybrid_blend    # average of hybrid_v3 and hybrid_lite (uses both sections below)
 
 seed: 0
 
@@ -36,6 +37,7 @@ hybrid_v3:
   blend_weight: 0.5   # weight of the hybrid branch in the geometric blend
   similarity_weight: 0.0  # optional similarity member for VCD/TCD (0 = off; idea 1)
   similarity_k: 5
+  feedb_offset: false # feed-B soft sensor for VCD/TCD (batch mean log-dose deviation)
   stage1:             # hybrid ODE (mechanistic model + rate-correcting neural nets)
     variant: states
     outputs: [mu, lac]  # rates the networks correct: growth and lactate
@@ -54,6 +56,7 @@ hybrid_lite:
   blend_weight: 0.5
   similarity_weight: 0.0
   similarity_k: 5
+  feedb_offset: false
   stage1:
     max_nfev_stage: 20
     max_nfev_final: 60

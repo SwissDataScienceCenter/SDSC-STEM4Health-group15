@@ -85,6 +85,8 @@ stages:
           cache: false
       - reports/figures/hybrid_lite.png:
           cache: false
+      - reports/figures/hybrid_blend.png:
+          cache: false
       - reports/figures/PE_all_models.png:
           cache: false
 
@@ -99,6 +101,11 @@ artifacts:
     type: model
     desc: Hybrid ODE (mechanistic + neural-net rate corrections) + soft-sensor stage 2, 50/50 blend
     labels: [hybrid, mechanistic, team-model]
+  hybrid_blend:
+    path: models/hybrid_blend_all.pkl
+    type: model
+    desc: Average of hybrid_v3 and hybrid_lite, both with the similarity member
+    labels: [hybrid, mechanistic, ensemble]
   hybrid_lite:
     path: models/hybrid_lite_all.pkl
     type: model

@@ -286,11 +286,14 @@ def mape_optimal_scale(pred: np.ndarray, obs: np.ndarray) -> float:
 
 
 class HybridBranch:
+    def __init__(self, extra_cell_cols=()):
+        self.extra = list(extra_cell_cols)  # extra features for the VCD/TCD corrections
+
     """Branch A: stage-1 prediction x stacked soft-sensor corrections."""
 
     def fit(self, train):
         lr = {v: np.log(train["obs_" + v] / train["s1_" + v]).to_numpy() for v in TARGETS}
-        self.cell = {v: gbm().fit(train[[*CELL_COLS, "ls1_" + v]].to_numpy(), lr[v])
+        self.cell = {v: gbm().fit(train[[*CELL_COLS, *self.extra, "ls1_" + v]].to_numpy(), lr[v])
                      for v in ("vcd", "tcd")}  # fmt: skip
         self.soft = SoftSensor().fit(train, lr["substrate"])
         self.ridge_S = DayRidge(S_COLS, days=set(range(3, N_DAYS))).fit(
@@ -309,7 +312,7 @@ class HybridBranch:
     def _raw(self, rows):
         corr = {v: np.zeros(len(rows)) for v in TARGETS}
         for v in ("vcd", "tcd"):
-            corr[v] = self.cell[v].predict(rows[[*CELL_COLS, "ls1_" + v]].to_numpy())
+            corr[v] = self.cell[v].predict(rows[[*CELL_COLS, *self.extra, "ls1_" + v]].to_numpy())
         corr["substrate"] = self.soft.predict(rows) + self.ridge_S.predict(rows)
         corr["byproduct"] = self.ridge_L.predict(rows)
         return pd.DataFrame({v: rows["s1_" + v].to_numpy() * np.exp(corr[v]) for v in TARGETS},
@@ -327,8 +330,10 @@ class HybridBranch:
 class DataDrivenBranch:
     """Branch B: gradient boosting on log(target), bagged over batch-level bootstrap samples."""
 
-    def __init__(self, n_bags=10, seed=0):
+    def __init__(self, n_bags=10, seed=0, extra_cell_cols=()):
         self.n_bags, self.seed = n_bags, seed
+        extra = list(extra_cell_cols)
+        self.cols = {v: [*DD_COLS[v], *(extra if v in ("vcd", "tcd") else [])] for v in TARGETS}
 
     def fit(self, train):
         rng = np.random.default_rng(self.seed)
@@ -340,14 +345,14 @@ class DataDrivenBranch:
                              ignore_index=True)  # fmt: skip
             self.models.append({
                 v: gbm(depth=3, lr=0.05, iters=400, leaf=15).fit(
-                    boot[DD_COLS[v]].to_numpy(), np.log(boot["obs_" + v].to_numpy()))
+                    boot[self.cols[v]].to_numpy(), np.log(boot["obs_" + v].to_numpy()))
                 for v in TARGETS
             })  # fmt: skip
         return self
 
     def predict(self, rows):
         return pd.DataFrame(
-            {v: np.exp(np.mean([m[v].predict(rows[DD_COLS[v]].to_numpy()) for m in self.models],
+            {v: np.exp(np.mean([m[v].predict(rows[self.cols[v]].to_numpy()) for m in self.models],
                                axis=0)) for v in TARGETS},
             index=rows.index,
         )  # fmt: skip
@@ -435,13 +440,17 @@ class HybridV3(BaseEstimator, RegressorMixin):
         original settings) or LiteODEConfig (mechanistic ODE only, ~10x cheaper).
     similarity_weight : weight of the optional similarity member for VCD/TCD (0 = off).
     similarity_k : number of similar training batches it averages.
+    feedb_offset : add the feed-B soft sensor to the VCD/TCD models: a batch's mean deviation
+        of log(feed-B dose after a sample) from the typical dose of that day (days 3-12).
+        Feeding is adaptive (dose ~ measured VCD), so it reveals whole-batch VCD offsets.
     n_jobs : processes for the stage-1 least-squares fits (None = all cores).
     cache_dir : joblib cache for stage-1 fits, keyed on the training data and config, so
         refitting on the same batches (figures, reruns) is free. None disables caching.
     """
 
     def __init__(self, inner_folds=5, n_bags=10, blend_weight=0.5, stage1=None,
-                 similarity_weight=0.0, similarity_k=5, n_jobs=None, raw_path=RAW_PATH,
+                 similarity_weight=0.0, similarity_k=5, feedb_offset=False, n_jobs=None,
+                 raw_path=RAW_PATH,
                  random_state=0, cache_dir=MODELS_DIR / "cache"):  # fmt: skip  # fmt: skip
         self.inner_folds = inner_folds
         self.n_bags = n_bags
@@ -449,6 +458,7 @@ class HybridV3(BaseEstimator, RegressorMixin):
         self.stage1 = stage1
         self.similarity_weight = similarity_weight
         self.similarity_k = similarity_k
+        self.feedb_offset = feedb_offset
         self.n_jobs = n_jobs
         self.raw_path = raw_path
         self.random_state = random_state
@@ -489,6 +499,10 @@ class HybridV3(BaseEstimator, RegressorMixin):
         for c in SCHEDULE_COLS:
             mean = F["day"].map(self.schedule_[c]).fillna(self.schedule_[c].mean())
             F[c + "_dev"] = F[c] - mean
+        # feed-B soft sensor: batch mean of log(dose) minus the typical log(dose) of that day
+        dosed = (F["fb_next"] > 0) & (F["day"] >= 3)
+        lfb = np.log(F.loc[dosed, "fb_next"]) - F.loc[dosed, "day"].map(self.fb_logmean_)
+        F["fb_offset"] = F["batch_id"].map(lfb.groupby(F.loc[dosed, "batch_id"]).mean()).fillna(0)
         batch, day = sensor_features(unlogged_volume(samples, feeds, ids), self.sample_volume_,
                                      samples, feeds, ids)  # fmt: skip
         F = F.merge(batch.reset_index(names="batch_id"), on="batch_id", how="left")
@@ -546,13 +560,16 @@ class HybridV3(BaseEstimator, RegressorMixin):
         # Pooled input statistics, learned from the training batches only.
         F = stamp_features(samples, feeds, ids)
         self.schedule_ = {c: F.groupby("day")[c].mean() for c in SCHEDULE_COLS}
+        dosed = (F["fb_next"] > 0) & (F["day"] >= 3)
+        self.fb_logmean_ = np.log(F.loc[dosed, "fb_next"]).groupby(F.loc[dosed, "day"]).mean()
         self.sample_volume_ = fit_sample_volume(unlogged_volume(samples, feeds, ids))
 
         rows = self._rows(X, s1)
         for v in TARGETS:
             rows["obs_" + v] = Y[v].to_numpy(float)
-        self.branch_a_ = HybridBranch().fit(rows)
-        self.branch_b_ = DataDrivenBranch(self.n_bags, self.random_state).fit(rows)
+        extra = ["fb_offset"] if self.feedb_offset else []
+        self.branch_a_ = HybridBranch(extra).fit(rows)
+        self.branch_b_ = DataDrivenBranch(self.n_bags, self.random_state, extra).fit(rows)
         self.similarity_ = None
         if self.similarity_weight > 0:
             self.similarity_ = CellSimilarity(self.similarity_k).fit(rows)

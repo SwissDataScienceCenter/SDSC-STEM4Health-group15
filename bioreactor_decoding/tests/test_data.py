@@ -159,6 +159,7 @@ def test_v3_features_of_a_batch_ignore_other_batches(tables):
     est.schedule_ = {c: X.groupby(np.rint(X["t"]).astype(int))["t"].mean() for c in
                      ["fb_next", "fb_prev", "fc_next", "fc_prev", "V"]}  # any fitted values
     est.sample_volume_ = 0.05
+    est.fb_logmean_ = X.groupby(np.rint(X["t"]).astype(int))["t"].mean().apply(np.log1p)
     s1 = np.ones((len(X), len(TARGETS)))
     full = est._rows(X, s1)
     one = X["batch_id"] == X["batch_id"].iat[0]
