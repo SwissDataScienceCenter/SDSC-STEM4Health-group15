@@ -1,14 +1,14 @@
 {
   "footprint": {
-    "cv_seconds": 684.7,
+    "cv_seconds": 39.0,
     "cpu_count": 16,
-    "fit_dev_seconds": 138.5,
-    "fit_dev_stage1_from_cache": false,
-    "model_dev_mb": 14.166,
-    "fit_all_seconds": 146.0,
-    "fit_all_stage1_from_cache": false,
-    "model_all_mb": 14.495,
-    "peak_rss_mb": 359.4,
-    "peak_rss_children_mb": 265.7
+    "fit_dev_seconds": 7.6,
+    "fit_dev_stage1_from_cache": true,
+    "model_dev_mb": 14.182,
+    "fit_all_seconds": 7.8,
+    "fit_all_stage1_from_cache": true,
+    "model_all_mb": 14.513,
+    "peak_rss_mb": 339.9,
+    "peak_rss_children_mb": 255.0
   }
 }

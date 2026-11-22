@@ -15,7 +15,7 @@ make pipeline                                  # dvc repro: CV, fits, holdout ch
 make metrics                                   # CV and holdout MAPE of every model
 ```
 
-Docs: [problem and data](docs/intro.md) · [pipeline, models, MLOps rules](docs/mlops.md)
+Docs: [problem and data](docs/intro.md) · [pipeline, models, MLOps rules](docs/mlops.md) · [experiment log](docs/experiments.md)
 
 ## Project Organization
 

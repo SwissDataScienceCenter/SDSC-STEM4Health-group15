@@ -117,6 +117,7 @@ if the hackathon's data rules allow it.
 | `null_xgb_ensemble` | 50/50 average of `null_per_day` and `xgb_raw` | `modeling/models.py` |
 | `hybrid_v3` | Hybrid ODE + soft sensors + 50/50 blend with boosting (team model) | `modeling/hybrid_v3.py` |
 | `hybrid_lite` | `hybrid_v3`'s stage 2 on a mechanistic stage 1 without neural nets | `modeling/lite.py` |
+| `hybrid_blend` | Average of `hybrid_v3` and `hybrid_lite` (current best, CV 7.95) | `modeling/train.py` |
 
 ### Hybrid v3
 
@@ -147,7 +148,7 @@ Both come from branch `06_hybrid_tr_based`:
   jointly (`modeling/lite.py`). The port reproduces the original's simulator and starting values
   exactly. One stage-1 fit takes about 75 s instead of about 15 minutes: stage 2 does most of the
   work, so a cruder stage 1 costs little accuracy.
-- **The similarity member** (`similarity_weight` in `params.yaml`, off by default) is an optional
+- **The similarity member** (`similarity_weight` in `params.yaml`; 1/3 in both hybrids) is a
   third blend member for VCD and TCD. It predicts a batch's correction curve from its k most
   similar training batches at t = 0, with distances on descriptors standardised inside `fit`.
 

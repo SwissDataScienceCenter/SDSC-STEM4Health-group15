@@ -35,7 +35,7 @@ hybrid_v3:
   inner_folds: 5      # batch-wise folds inside fit for the stage-2 (stacking) features
   n_bags: 10          # bootstrap bags of the data-driven branch
   blend_weight: 0.5   # weight of the hybrid branch in the geometric blend
-  similarity_weight: 0.0  # optional similarity member for VCD/TCD (0 = off; idea 1)
+  similarity_weight: 0.3333  # similarity member for VCD/TCD (0 = off): better in 4/5 CV folds
   similarity_k: 5
   feedb_offset: false # feed-B soft sensor for VCD/TCD (batch mean log-dose deviation)
   stage1:             # hybrid ODE (mechanistic model + rate-correcting neural nets)
@@ -54,7 +54,7 @@ hybrid_lite:
   inner_folds: 5
   n_bags: 10
   blend_weight: 0.5
-  similarity_weight: 0.0
+  similarity_weight: 0.3333  # better in 5/5 CV folds
   similarity_k: 5
   feedb_offset: false
   stage1:
