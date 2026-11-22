@@ -916,13 +916,13 @@ stages:
     deps:
     - path: bioreactor_decoding/plots.py
       hash: md5
-      md5: 29df75dfaf08022df784076fade1f8a7
-      size: 11079
+      md5: d1515a640fc39695e7fb493b29218e95
+      size: 11257
     - path: reports/holdout
       hash: md5
-      md5: 680206ca01daec6ebceeed23c373db96.dir
-      size: 137141
-      nfiles: 11
+      md5: 0949b79250d2ede7317f139f689b69f9.dir
+      size: 150051
+      nfiles: 12
     outs:
     - path: reports/figures/PE_all_models.png
       hash: md5
@@ -964,6 +964,10 @@ stages:
       hash: md5
       md5: 2b9c24462104b9e2a9680ab6d3dc1fae
       size: 604696
+    - path: reports/figures/option_a.png
+      hash: md5
+      md5: a44b6d5cdcd46cf4c30c93ec8e31e0f0
+      size: 603574
     - path: reports/figures/xgb_log_fold_change.png
       hash: md5
       md5: 4c068d2d2726dce22aa70d594407de9c
@@ -1579,10 +1583,14 @@ stages:
   hybrid_v7:
     cmd: python -m bioreactor_decoding.modeling.external_v7
     deps:
+    - path: bioreactor_decoding/modeling/external.py
+      hash: md5
+      md5: 50f8291fa0fb2af15b9f74626833c66e
+      size: 2093
     - path: bioreactor_decoding/modeling/external_v7.py
       hash: md5
-      md5: 922289b1a1cddb5e62fedf7c80b0febe
-      size: 4325
+      md5: 2af946022bebf8372a486e5fb834c3f2
+      size: 3499
     - path: data/raw
       hash: md5
       md5: c63678383749d00b7e1a919659569e28.dir
@@ -1761,3 +1769,86 @@ stages:
       hash: md5
       md5: 169e7860128cbfe2187c709c495f65db
       size: 14611
+  option_a:
+    cmd: python -m bioreactor_decoding.modeling.external_option_a
+    deps:
+    - path: bioreactor_decoding/modeling/external.py
+      hash: md5
+      md5: 50f8291fa0fb2af15b9f74626833c66e
+      size: 2093
+    - path: bioreactor_decoding/modeling/external_option_a.py
+      hash: md5
+      md5: fc5ec2ca8abcfe428d2933c0d38f964a
+      size: 6828
+    - path: data/raw
+      hash: md5
+      md5: c63678383749d00b7e1a919659569e28.dir
+      size: 217699
+      nfiles: 3
+    - path: references/splits.csv
+      hash: md5
+      md5: f1f4c7328b64a3ec0e8c9357ceacbca0
+      size: 938
+    params:
+      params.yaml:
+        option_a:
+          ref: 863e751fe96f4b4350fbd4f12fc2527f68c36318
+    outs:
+    - path: data/processed/submission_option_a.csv
+      hash: md5
+      md5: a4de14775028006fe6055b81e5a53cd7
+      size: 14666
+    - path: data/processed/submission_option_a_submitted.csv
+      hash: md5
+      md5: 647adc776c22b7d540a90307d7312710
+      size: 14643
+    - path: reports/holdout/option_a.csv
+      hash: md5
+      md5: 141c0370d4df5b09dc79322acbcfb4ea
+      size: 12910
+    - path: reports/metrics/option_a.json
+      hash: md5
+      md5: dafecfec29fc0dfd1e657882bccae7c7
+      size: 499
+    - path: reports/option_a/blend_weights.csv
+      hash: md5
+      md5: 9685579e6cf9fae2c96e72ea11121978
+      size: 229
+  anomaly:
+    cmd: python -m bioreactor_decoding.anomaly
+    deps:
+    - path: bioreactor_decoding/anomaly.py
+      hash: md5
+      md5: 3d951d07aa30ab831fd0aa835621d7c5
+      size: 19298
+    - path: bioreactor_decoding/modeling/external.py
+      hash: md5
+      md5: 50f8291fa0fb2af15b9f74626833c66e
+      size: 2093
+    - path: data/raw
+      hash: md5
+      md5: c63678383749d00b7e1a919659569e28.dir
+      size: 217699
+      nfiles: 3
+    params:
+      params.yaml:
+        hybrid_v7:
+          ref: 18810698a46e0a31e890e737562f8ebf186df7cf
+    outs:
+    - path: reports/anomaly
+      hash: md5
+      md5: 21ec3bd13cc06d67a30edfcf39efc63d.dir
+      size: 3821
+      nfiles: 5
+    - path: reports/figures/anomaly_v7_cell_level.png
+      hash: md5
+      md5: 8d5eb48131025107e81177ae35898a97
+      size: 313056
+    - path: reports/figures/anomaly_v7_detection.png
+      hash: md5
+      md5: 748821857f0bde317217ee33fb08e71c
+      size: 122119
+    - path: reports/metrics/anomaly.json
+      hash: md5
+      md5: eafec44269936f2495c994e6cdb76e25
+      size: 771

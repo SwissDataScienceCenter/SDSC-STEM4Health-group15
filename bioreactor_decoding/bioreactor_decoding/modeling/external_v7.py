@@ -31,46 +31,25 @@ import typer
 from bioreactor_decoding.config import (
     METRICS_DIR,
     PROCESSED_DATA_DIR,
-    PROJ_ROOT,
-    RAW_DATA_DIR,
     REPORTS_DIR,
     load_params,
 )
-from bioreactor_decoding.dataset import TARGETS, load_template
-from bioreactor_decoding.modeling.predict import fill_template
+from bioreactor_decoding.dataset import TARGETS
+from bioreactor_decoding.modeling import external
 
 app = typer.Typer()
-WORKTREE = PROJ_ROOT / "external" / "hybrid_v7_tr"
+WORKTREE = external.EXTERNAL_DIR / "hybrid_v7_tr"
 OUT = "outputs/hybrid_v7"
 
 
-def _git(*args, cwd=PROJ_ROOT):
-    subprocess.run(["git", *args], cwd=cwd, check=True)
-
-
-def checkout(ref: str):
-    """Worktree of the team repository at `ref`, reset to the committed state."""
-    if not WORKTREE.exists():
-        WORKTREE.parent.mkdir(parents=True, exist_ok=True)
-        _git("worktree", "add", "--detach", str(WORKTREE), ref)
-    _git("checkout", "--detach", "--force", ref, cwd=WORKTREE)
-    _git("reset", "--hard", "--quiet", cwd=WORKTREE)
-    data = WORKTREE / "input-data" / "Project 1 - DTB"  # where his code expects the data
-    data.parent.mkdir(exist_ok=True)
-    if data.is_symlink() or data.exists():
-        data.unlink()
-    data.symlink_to(RAW_DATA_DIR, target_is_directory=True)
-
-
 def to_submission(path) -> pd.DataFrame:
-    pred = pd.read_csv(WORKTREE / path, dtype={"batch_id": str})
-    return fill_template(load_template(), pred[["batch_id", "elapsed_time", *TARGETS]])
+    return external.to_submission(pd.read_csv(WORKTREE / path, dtype={"batch_id": str}))
 
 
 @app.command()
 def main():
     ref = str(load_params()["hybrid_v7"]["ref"])
-    checkout(ref)
+    external.checkout(ref, WORKTREE)
     logger.info(f"Running src/hybrid_v7.py at {ref}")
     subprocess.run([sys.executable, "src/hybrid_v7.py"], cwd=WORKTREE, check=True)
 

@@ -1,0 +1,13 @@
+batch,largest abs z,feature,outside training range,T2,SPE,flag
+Batch54,3.78,s0,s0,5.6,20.5,yes
+Batch57,2.89,l0,l0,2.9,17.4,
+Batch5,2.5,l0,l0,7.8,2.4,yes
+Batch40,2.5,l0,l0,3.6,5.5,
+Batch32,2.46,vcd0,vcd0,4.1,9.2,
+Batch35,2.43,A_early,"tot_feed_d, A11",4.2,10.5,
+Batch6,2.42,A_early,-,1.2,11.9,
+Batch48,2.32,base_to3,"base_to3, base_to4",3.7,4.2,
+Batch24,2.24,A12,-,2.3,9.5,
+Batch12,1.67,vcd0,-,1.8,3.1,
+Batch60,1.55,tot_feed_substrate,-,2.5,5.6,
+Batch56,1.02,base_to3,-,0.6,2.2,

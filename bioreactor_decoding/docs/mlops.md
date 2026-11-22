@@ -13,7 +13,15 @@ flowchart LR
     train["train@model<br/>CV on dev folds,<br/>fit on dev and on all"] --> evaluate["evaluate@model<br/>holdout MAPE<br/>(dev model, no refit)"]
     train --> submission["submission@model<br/>data/processed/<br/>submission_model.csv"]
     evaluate --> figures["figures<br/>reports/figures/*.png"]
+    raw --> option_a["option_a<br/>final model, run at<br/>a pinned commit"]
+    option_a --> figures
+    raw --> v7["hybrid_v7<br/>pinned commit"]
+    raw --> anomaly["anomaly<br/>on v7's residuals"]
 ```
+
+The team models that live on another branch (`hybrid_v7`, `option_a`) are not rewritten: each
+stage runs the team's code unchanged from a git worktree at the commit in `params.yaml`
+(`modeling/external.py`).
 
 ## Commands
 
@@ -86,6 +94,7 @@ hybrids. Results, including the rejected ideas, go in [the experiment log](exper
 | CV scores per fold | `reports/cv/<model>.csv` | yes |
 | Metrics (CV and holdout MAPE) | `reports/metrics/cv_<model>.json`, `<model>.json` | yes |
 | Holdout predictions (no measured values) | `reports/holdout/<model>.csv` | yes |
+| Anomaly detection tables (scores, flags, rates) | `reports/anomaly/*.csv`, `reports/metrics/anomaly.json` | yes |
 | Figures | `reports/figures/*.png` | yes |
 | Submissions | `data/processed/submission_<model>.csv` | no (derived from the data) |
 
@@ -110,6 +119,7 @@ if the hackathon's data rules allow it.
 
 | Name | What it is | Code |
 |---|---|---|
+| **`option_a`** | **The final model** (GTO stage `prod`): one sensor-assimilated Monod core, two learned views, blended (leaderboard 6.81; run from a pinned commit) | `modeling/external_option_a.py` |
 | `null_constant` | Mean of each variable over all times and batches | `modeling/models.py` |
 | `null_per_day` | Mean of each variable per culture day (the "recipe" curve) | `modeling/models.py` |
 | `xgb_raw` | XGBoost on raw features and raw targets | `modeling/train.py` |
@@ -117,7 +127,7 @@ if the hackathon's data rules allow it.
 | `null_xgb_ensemble` | 50/50 average of `null_per_day` and `xgb_raw` | `modeling/models.py` |
 | `hybrid_v3` | Hybrid ODE + soft sensors + 50/50 blend with boosting (team model) | `modeling/hybrid_v3.py` |
 | `hybrid_lite` | `hybrid_v3`'s stage 2 on a mechanistic stage 1 without neural nets | `modeling/lite.py` |
-| `hybrid_blend` | Average of `hybrid_v3` and `hybrid_lite` (current best, CV 7.95) | `modeling/train.py` |
+| `hybrid_blend` | Average of `hybrid_v3` and `hybrid_lite` (best adopted under our 5-fold rule, CV 7.95) | `modeling/train.py` |
 | `mechanistic_lite` | Pure mechanistic: `hybrid_lite`'s ODE alone, no data-driven correction (CV 13.56) | `modeling/models.py` (`Stage1Only`) |
 | `ml_sensors` | Ridge + XGBoost with volume and bolus soft sensors, no ODE (branch `3_ML_models`) | `modeling/ml_sensors.py` |
 | `hybrid_v7` | Tobias' 4-model blend on sensor-assimilated cores (leaderboard 6.752; run from a pinned commit) | `modeling/external_v7.py` |
@@ -186,6 +196,57 @@ a minute; the cores' outputs are committed on his branch) and collects the submi
   Batch48, day 2). The rerun is deterministic and independent of the Python environment, so
   the submitted file was written from cached core outputs that changed before the commit.
   The registered artifact is the submitted file.
+
+### Option A, the final model (external, pinned commit)
+
+Option A (branch `hybrid_v3_tr`, commit `863e751`, `src/option_a.py`) is v7 cut down to what
+the report argues for: **one mechanistic core with sensor assimilation plus learned
+corrections**. The core is v7's sensor-conditioned particle Monod core (member 1 above). Two
+learned views run on it, the hybrid v3 recipe (30 bags, 50/50 branch blend) and the
+functional-PCA trajectory model (K = 5, ridge 10). They are blended geometrically with
+non-negative weights per variable and day segment, fitted on out-of-fold predictions. The
+finishing steps are v7's: glucose is moved to the MAPE-optimal point inside the bolus-rule
+interval, and TCD ≥ VCD. It drops v7's other three cores and the TCD ratio model.
+
+| | Option A | Hybrid v7 |
+|---|---|---|
+| Mechanistic cores | 1 | 4 |
+| 7-fold CV (`cv7_mape`, his protocol) | 7.30 | 7.187 |
+| Leaderboard (12 test batches) | 6.81 | 6.752 |
+| Rerun vs. submitted file | identical (max 2e-12 %) | median 0.22 %, max 19.8 % |
+
+Option A gives up 0.06 on the leaderboard for a model with one mechanistic core instead of
+four, whose submission reproduces exactly. The team adopted it as the final model (registered as `option_a` v1.0.0,
+stage `prod`). It was not judged by our per-fold rule, since it has no CV on our 5 dev folds
+(see `docs/experiments.md`).
+
+`dvc repro option_a` runs `src/option_a.py` unchanged at `option_a.ref`, in its own worktree
+(`external/option_a_tr`; about 30 s). The commit only adds files to the v7 commit, so the two
+run the same scripts and cached core outputs. `reports/metrics/option_a.json` records:
+
+- `cv7_mape`: his 7-fold CV, rerun (identical to the committed `cv_score.csv`);
+- `leaderboard_mape`: the leaderboard's answer to the submission, read from the printed output
+  of `notebooks/Leaderboard_template.ipynb` at the commit (there is no results file);
+- `holdout_mape_oof7`: MAPE on our 10 holdout batches of its **out-of-fold** predictions
+  (`reports/holdout/option_a.csv`). Each holdout batch was predicted by a model that never saw
+  it, but that model was fitted on about 42 of the 49 labelled batches, holdout batches
+  included, and the choices behind Option A were made on those folds. So it is comparable in
+  spirit, not in protocol, with `holdout_mape` of our models (fitted on the 39 dev batches);
+- `rerun_vs_submitted_pct`: how far the rerun is from the committed submission.
+
+The registered artifact is the submitted file. It is read from git, because the rerun
+overwrites it in the worktree.
+
+## Anomaly detection
+
+`dvc repro anomaly` (`bioreactor_decoding/anomaly.py`, narrative in
+`notebooks/anomaly_v7.ipynb`, from branch `anomalies_detection`) screens the 49 labelled
+batches for abnormal behaviour, using only normal batches: hybrid v7's out-of-fold residuals,
+log(measured / predicted), define normal. It reports a batch score (robust z and PCA T²/SPE,
+each batch against the other 48), cell-level rules for spikes and persistent deviations
+(standard and strict level), detection rates on injected faults, and an input-only check of
+the 12 test batches. The v7 files it needs are read as committed at `hybrid_v7.ref`. Results:
+`reports/anomaly/`, `reports/metrics/anomaly.json`, `reports/figures/anomaly_v7_*.png`.
 
 ## Resource footprint
 

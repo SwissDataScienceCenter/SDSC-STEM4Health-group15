@@ -117,6 +117,8 @@ FIGURES = {
         "Average of hybrid blend and ML with sensors",
         False,
     ),
+    # out-of-fold predictions from Option A's own 7-fold CV (see external_option_a.py)
+    "option_a": ("option_a.png", "Option A, the final model (7-fold out-of-fold)", False),
 }
 
 

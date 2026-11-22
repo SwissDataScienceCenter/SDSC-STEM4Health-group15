@@ -63,3 +63,20 @@ substrate worse on average (up to +0.7). Holdout: 6.84 (from 6.99). Largest CV g
 but not consistent across folds. Per-variable ML weights (e.g. none for substrate) would
 likely help, but choosing four weights on these same 5 folds overfits them; judge such a
 variant on fresh fold splits.
+
+## Final model (2026-11-22): Option A
+
+The team adopted **Option A** (branch `hybrid_v3_tr`, commit `863e751`) as the final model:
+v7's sensor-assimilated Monod core with two learned views (the hybrid v3 recipe and fPCA),
+instead of v7's four cores. This was a team decision for a simpler model, not a verdict of the
+rule above: Option A has no CV on our 5 dev folds (it is validated with Tobias' 7 folds over
+all 49 labelled batches).
+
+| | 7-fold CV | Leaderboard | Rerun vs. submitted |
+|---|---|---|---|
+| Hybrid v7 (4 cores) | 7.187 | 6.752 | max 19.8 % |
+| **Option A** (1 core) | 7.30 | 6.81 | identical |
+
+Option A is worse by 0.11 in CV and 0.06 on the leaderboard. Its out-of-fold predictions of
+our 10 holdout batches score 6.62 (`holdout_mape_oof7`; a different protocol from our holdout
+check, see `docs/mlops.md`). Registered as `option_a` v1.0.0, stage `prod`.

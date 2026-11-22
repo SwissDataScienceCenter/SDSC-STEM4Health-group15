@@ -1,0 +1,43 @@
+{
+  "blend_mape": {
+    "vcd": 6.721,
+    "tcd": 6.682,
+    "substrate": 7.192,
+    "byproduct": 8.037,
+    "score": 7.158
+  },
+  "residual_spread_log": 0.0962,
+  "batch_level": {
+    "thresholds": {
+      "D1": 1.792,
+      "T2": 6.686,
+      "SPE": 128.344
+    },
+    "flagged": 6,
+    "batches": 49
+  },
+  "cell_level": {
+    "flagged_standard": 5,
+    "flagged_strict": 3
+  },
+  "false_alarm_rate": {
+    "batch score": 0.122,
+    "cell rules, standard": 0.102,
+    "cell rules, strict": 0.061
+  },
+  "detection_size_0.5": {
+    "batch score": 0.711,
+    "cell rules, standard": 0.833,
+    "cell rules, strict": 0.709
+  },
+  "test_inputs": {
+    "thresholds": {
+      "T2": 7.57,
+      "SPE": 18.54
+    },
+    "flagged": [
+      "Batch54",
+      "Batch5"
+    ]
+  }
+}

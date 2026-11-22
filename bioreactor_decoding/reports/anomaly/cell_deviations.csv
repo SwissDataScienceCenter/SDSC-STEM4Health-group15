@@ -1,0 +1,6 @@
+batch,type,variable,days,mean z,measured vs predicted (%),strict level
+Batch46,persistent,substrate,4-7,-5.7,-29,yes
+Batch4,persistent,byproduct,2-6,-4.0,-22,no
+Batch50,persistent,substrate,4-6,3.2,22,no
+Batch34,spike,byproduct,13,7.6,270,yes
+Batch29,spike,byproduct,13,7.1,242,yes

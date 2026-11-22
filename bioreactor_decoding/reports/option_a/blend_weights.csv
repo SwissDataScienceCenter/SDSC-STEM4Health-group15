@@ -1,0 +1,9 @@
+,,as,as_fp
+vcd,days 1-6,0.745,0.255
+vcd,days 7-13,0.76,0.24
+tcd,days 1-6,0.765,0.235
+tcd,days 7-13,0.755,0.245
+substrate,days 1-6,0.62,0.38
+substrate,days 7-13,0.495,0.505
+byproduct,days 1-6,0.98,0.02
+byproduct,days 7-13,0.6,0.4
