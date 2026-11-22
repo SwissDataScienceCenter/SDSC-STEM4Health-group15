@@ -62,7 +62,7 @@ MODELS = [
 TITLES = {
     1: "Pure mechanistic model: percent error",
     2: "Machine learning vs. mechanistic: percent error",
-    3: "Hybrid vs. mechanistic and ML: percent error",
+    3: "Option A hybrid vs. mechanistic and ML: percent error",
 }
 
 

@@ -3,7 +3,7 @@
     manim -qh presentation/hero.py Hero
 
 One continuous shot, built for a projector:
-  1. Behaviour: the hybrid forecasts holdout batch 10 from its day-0 values and feed plan;
+  1. Behaviour: the hybrid (Option A) forecasts holdout batch 10 from its day-0 values and feed plan;
      actual (off-white, dots) and predicted (aqua) grow together, feeds tick in below.
   2. The morph: each panel turns into percent error. The actual curve flattens into the zero
      line, the prediction bends into its error curve, the value axis becomes +-30%.
@@ -122,7 +122,9 @@ class Hero(Scene):
         # --- frame: title, caption, panels (value and error axes in the same place) -------
         title = txt("From day 0 and the feed plan to 13 days of culture", 30, TEXT)
         title.to_corner(UP + LEFT, buff=0.35)
-        caption = txt("Hybrid model, holdout batch never seen in training", 22, TEXT_2)
+        caption = txt(
+            "Option A, our final hybrid model, on a holdout batch it never saw", 22, TEXT_2
+        )
         caption.next_to(title, DOWN, aligned_edge=LEFT, buff=0.15)
 
         height, gap, top_y, x_len, x_mid = 0.95, 0.2, 1.75, 11.0, 1.05
@@ -212,7 +214,7 @@ class Hero(Scene):
         legend1 = VGroup(
             VGroup(key_actual, txt("Actual", 22, TEXT)).arrange(RIGHT, buff=0.15),
             VGroup(Line(LEFT * 0.3, RIGHT * 0.3, color=MODELS[HYBRID][1], stroke_width=5),
-                   txt("Hybrid prediction", 22, TEXT)).arrange(RIGHT, buff=0.15),
+                   txt("Option A prediction", 22, TEXT)).arrange(RIGHT, buff=0.15),
         ).arrange(RIGHT, buff=0.5)  # fmt: skip
         legend1.next_to(caption, DOWN, aligned_edge=LEFT, buff=0.18)
         tag = batch_tag(b)
@@ -305,7 +307,7 @@ class Hero(Scene):
 
         # --- 4. two more batches, error view, all models at once ----------------------------
         notes = {"Batch17": "A harder batch",
-                 "Batch34": "Here machine learning matches the hybrid"}  # fmt: skip
+                 "Batch34": "Here machine learning matches Option A"}  # fmt: skip
         current_caption = caption3
         for b in BATCHES[1:]:
             g = {m: d.loc[d["batch_id"] == b].sort_values("t") for m, d in data.items()}
