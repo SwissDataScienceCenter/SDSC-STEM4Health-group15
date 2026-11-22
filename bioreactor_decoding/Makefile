@@ -29,21 +29,21 @@ clean:
 ## Lint using ruff (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	ruff format --check
-	ruff check
+	.venv/bin/ruff format --check
+	.venv/bin/ruff check
 
 ## Format source code with ruff
 .PHONY: format
 format:
-	ruff check --fix
-	ruff format
+	.venv/bin/ruff check --fix
+	.venv/bin/ruff format
 
 
 
 ## Run tests
 .PHONY: test
 test:
-	python -m pytest tests
+	.venv/bin/python -m pytest tests
 
 
 ## Rebuild every out-of-date model, metric and submission (DVC pipeline)
@@ -69,7 +69,7 @@ presentation-env:
 .PHONY: videos
 videos:
 	.venv/bin/python presentation/export_traces.py
-	cd presentation && for m in mechanistic_lite ml_sensors hybrid_blend; do \
+	cd presentation && for m in mechanistic_lite ml_sensors option_a; do \
 		MODEL=$$m ../.venv/bin/manim -qh --media_dir media -o $$m holdout_traces.py HoldoutTraces; \
 	done
 
