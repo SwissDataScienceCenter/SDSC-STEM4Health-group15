@@ -1,0 +1,54 @@
+idea,vcd,tcd,substrate,byproduct,leaderboard_score,note
+0 v5 stack (reference),6.868,6.794,7.52,8.283,7.366,old weight search (min weight ~0.04)
+1 simplex weights (zeros allowed),6.832,6.762,7.539,8.294,7.357,
+2 hyb + dd branches as members,6.902,6.864,7.617,8.273,7.414,21 members
+3 stack 1 segment,6.962,6.894,7.655,8.447,7.49,21 members
+"3 stack 3 segments (1-4, 5-9, 10-13)",6.935,6.883,7.76,8.509,7.522,21 members
+"3 stack 4 segments (1-3, 4-7, 8-10, 11-13)",6.915,6.805,7.744,8.472,7.484,21 members
+   v3 on core twopop,7.001,6.97,8.418,8.671,7.765,
+4 + two-population core,6.784,6.752,7.541,8.29,7.342,simplex weights
+6 censored glucose posterior p2,6.784,6.752,7.488,8.29,7.328,on stack incl. two-pop
+6 censored glucose posterior p13,6.784,6.752,7.468,8.29,7.323,on stack incl. two-pop
+7 TCD via stacked VCD x ratio w1.0,6.784,6.709,7.541,8.29,7.331,
+7 TCD via stacked VCD x ratio w0.5,6.784,6.719,7.541,8.29,7.334,
+   v3 on core avg,7.01,6.957,8.046,8.707,7.68,
+8 + consensus stage-1 core,6.809,6.778,7.544,8.154,7.321,simplex weights
+   v3 on core monod_bag5,6.934,6.928,8.028,8.691,7.645,
+5 + bootstrap-bagged Monod core,6.811,6.78,7.553,8.163,7.327,simplex weights
+   v3 (dd 30 bags) on core states,6.942,6.909,8.066,8.751,7.667,
+final: stack + glucose posterior + TCD ratio,6.809,6.738,7.474,8.154,7.294,15 members
+   v3 (dd 30 bags) on core glc,7.033,6.93,7.994,8.67,7.657,
+   v3 on core assim,7.015,6.922,7.765,8.637,7.585,
+10 + sensor-conditioned particle core,6.847,6.817,7.312,8.183,7.29,simplex weights
+final+assim: stack + glucose posterior + TCD ratio,6.847,6.788,7.257,8.183,7.269,17 members
+   v3 (dd 30 bags) on core mech,6.926,6.911,8.221,8.644,7.675,
+   v3 (dd 30 bags) on core monod,6.889,6.854,8.067,8.681,7.623,
+   v3 (dd 30 bags) on core monod_sens,6.953,6.891,8.211,8.688,7.686,
+   v3 (dd 30 bags) on core twopop,6.976,6.938,8.44,8.662,7.754,
+   v3 (dd 30 bags) on core avg,6.982,6.924,8.081,8.694,7.67,
+"9 data-driven branch 30 bags, all cores",6.771,6.747,7.514,8.177,7.302,simplex weights
+9+10 dd30 + assim: stack + glucose posterior + TCD ratio,6.8,6.738,7.271,8.176,7.246,17 members
+   v3 (dd 30 bags) on core states,6.942,6.909,8.066,8.751,7.667,
+   v3 (dd 30 bags) on core glc,7.033,6.93,7.994,8.67,7.657,
+   v3 (dd 30 bags) on core mech,6.926,6.911,8.221,8.644,7.675,
+   v3 (dd 30 bags) on core monod,6.889,6.854,8.067,8.681,7.623,
+   v3 (dd 30 bags) on core monod_sens,6.953,6.891,8.211,8.688,7.686,
+   v3 (dd 30 bags) on core twopop,6.976,6.938,8.44,8.662,7.754,
+   v3 (dd 30 bags) on core avg,6.982,6.924,8.081,8.694,7.67,
+   v3 (dd 30 bags) on core assim,6.978,6.879,7.806,8.634,7.574,
+"9 data-driven branch 30 bags, all cores",6.771,6.747,7.514,8.177,7.302,simplex weights
+   v3 (dd 30 bags) on core states,6.942,6.909,8.066,8.751,7.667,
+   v3 (dd 30 bags) on core glc,7.033,6.93,7.994,8.67,7.657,
+   v3 (dd 30 bags) on core mech,6.926,6.911,8.221,8.644,7.675,
+   v3 (dd 30 bags) on core monod,6.889,6.854,8.067,8.681,7.623,
+   v3 (dd 30 bags) on core monod_sens,6.953,6.891,8.211,8.688,7.686,
+   v3 (dd 30 bags) on core twopop,6.976,6.938,8.44,8.662,7.754,
+   v3 (dd 30 bags) on core avg,6.982,6.924,8.081,8.694,7.67,
+   v3 (dd 30 bags) on core assim,6.978,6.879,7.806,8.634,7.574,
+"9 data-driven branch 30 bags, all cores",6.771,6.747,7.514,8.177,7.302,simplex weights
+9+10 dd30 everywhere + assim: stack + glucose posterior + TCD ratio,6.806,6.741,7.252,8.177,7.244,17 members
+   ref: stack + glucose posterior + TCD ratio,6.806,6.741,7.252,8.177,7.244,17 members
+   v3 on core a2_p3ic,7.001,6.922,7.78,8.602,7.576,
+   v3 on core a2_p5ic,6.993,6.907,7.738,8.621,7.565,
+   v3 on core a2_p5ic_s12,6.981,6.921,7.769,8.617,7.572,
+   v3 on core a2tp_p5ic,7.06,7.019,8.2,8.666,7.736,

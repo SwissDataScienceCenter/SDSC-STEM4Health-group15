@@ -1,0 +1,38 @@
+idea,vcd,tcd,substrate,byproduct,leaderboard_score,note
+0 hybrid_v3 (reference),6.972,6.946,8.023,8.758,7.674,1 model
+"0b v6 stack, 17 models (reference)",6.806,6.741,7.252,8.177,7.244,exceeds the 4-model cap
+1 best 1-model blend (nested selection),6.978,6.907,7.712,8.634,7.558,"picks: [(('as',), 7)]"
+1 best 2-model blend (nested selection),7.029,6.976,7.28,8.244,7.382,"picks: [(('as', 'as_fp'), 6), (('as', 'avg_fp'), 1)]"
+1 best 3-model blend (nested selection),7.05,6.997,7.292,8.246,7.396,"picks: [(('as', 'as_fp', 'tp'), 2), (('as', 'as_fp', 'raw'), 2)]"
+1 best 4-model blend (nested selection),6.998,6.944,7.36,8.164,7.366,"picks: [(('as', 'as_fp', 'tp', 'raw'), 2), (('as', 'as_fp', 'raw', 'tp'), 2)]"
+2 best 4-model blend incl. assim variants,6.974,6.908,7.246,8.279,7.352,"picks: [(('a5i', 'a3i_fp', 'states', 'avg_fp'), 2), (('as', 'a3i_fp', 'tp', 'raw'), 1)]"
+"   v3 on a2_p5ic, 3a post -> DD only",6.996,6.9,7.661,8.642,7.55,
+"   v3 on a2_p5ic, 3b post -> DD + cells",7.115,7.0,7.661,8.642,7.604,
+"   v3 on a2_p5ic, 3c post -> everywhere",7.115,7.0,7.677,8.641,7.608,
+3 best 4-model blend incl. posterior-feature v3,7.027,6.97,7.241,8.289,7.382,"picks: [(('pf3a', 'a3i_fp', 'states', 'glc_fp'), 2), (('pf3a', 'a3i_fp', 'states', 'avg_fp'), 2)]"
+4a assim-v3(post) + assim-FPCA + v3 + Monod-v3,6.808,6.769,7.137,8.103,7.204,pf3a+a3i_fp+states+monod
+4b assim-v3(post) + assim-FPCA + v3 + raw FPCA,6.839,6.801,7.192,8.303,7.284,pf3a+a3i_fp+states+raw
+4c assim-v3(post) + assim-FPCA + v3 + 2pop-v3,6.767,6.708,7.174,8.099,7.187,pf3a+a3i_fp+states+tp
+4d assim-v3 + assim-FPCA + v3 + Monod-v3,6.82,6.783,7.162,8.094,7.215,a5i+a3i_fp+states+monod
+4e assim-v3(post) + assim-FPCA + mech-v3 + Monod-v3,6.8,6.746,7.136,8.222,7.226,pf3a+a3i_fp+mech+monod
+4f assim-v3(post) + v3 + mech-v3 + Monod-v3,6.904,6.828,7.601,8.598,7.483,pf3a+states+mech+monod
+"   v3 on assim + post feats, dd 30 bags",6.961,6.884,7.688,8.629,7.541,
+5a = 4c with 30-bag data-driven branches,6.773,6.708,7.181,8.102,7.191,pf3a30+a3i_fp+states30+tp30
+5b = 4a with 30-bag data-driven branches,6.811,6.767,7.137,8.102,7.204,pf3a30+a3i_fp+states30+monod30
+6 set 4c with FPCA member a3i_fp,6.767,6.708,7.174,8.099,7.187,pf3a+a3i_fp+states+tp
+6 set 4c with FPCA member a5i_fp,6.836,6.775,7.241,8.053,7.226,pf3a+a5i_fp+states+tp
+6 set 4c with FPCA member as_fp,6.81,6.753,7.215,8.132,7.227,pf3a+as_fp+states+tp
+"6 set 4c, weights with 1 segment",6.767,6.708,7.174,8.099,7.187,pf3a+a3i_fp+states+tp
+"6 set 4c, weights with 3 segments",6.767,6.708,7.174,8.099,7.187,pf3a+a3i_fp+states+tp
+hybrid_v7 final (4 models),6.767,6.708,7.174,8.099,7.187,pf3a+a3i_fp+states+tp
+   v3 on assimilated two-pop core + post feats,7.103,7.083,8.242,8.898,7.832,
+7a set 4c with assimilated two-pop core,6.83,6.776,7.175,8.185,7.242,pf3a+a3i_fp+states+atp
+7b set 4c with assim two-pop + post feats,6.839,6.789,7.169,8.213,7.253,pf3a+a3i_fp+states+atpf
+7c set 4c with two-pop assim FPCA,6.897,6.82,7.513,8.379,7.402,pf3a+atp_fp+states+tp
+"8a set 4c, 1 segment",6.836,6.78,7.157,8.248,7.255,pf3a+a3i_fp+states+tp
+"8a set 4c, 3 segments",6.861,6.795,7.218,8.263,7.284,pf3a+a3i_fp+states+tp
+"8a set 4c, per-day weights",6.881,6.822,7.361,8.21,7.319,pf3a+a3i_fp+states+tp
+8b set 4c + per-day MAPE-optimal scaling,7.041,6.976,7.478,8.319,7.454,
+"8c set 4c, glucose posterior pool +-1 d",6.767,6.708,7.233,8.099,7.202,
+"8c set 4c, glucose posterior pool +-3 d",6.767,6.708,7.22,8.099,7.199,
+hybrid_v7 final (4 models),6.767,6.708,7.174,8.099,7.187,pf3a+a3i_fp+states+tp

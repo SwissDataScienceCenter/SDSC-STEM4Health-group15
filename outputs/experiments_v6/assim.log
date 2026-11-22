@@ -1,0 +1,9 @@
+ESS median 118.0 min 80.1
+ESS median 97.4 min 36.6
+ESS median 74.6 min 17.6
+ESS median 111.1 min 27.6
+ESS median 136.0 min 37.3
+ESS median 70.2 min 5.1
+ESS median 28.5 min 23.4
+assim held-out MAPE: {'vcd': 10.57, 'tcd': 10.92, 'substrate': 12.65, 'byproduct': 12.18} mean 11.58
+monod (same fits, no assimilation) held-out MAPE: {'vcd': 10.5, 'tcd': 10.84, 'substrate': 14.83, 'byproduct': 15.03} mean 12.8

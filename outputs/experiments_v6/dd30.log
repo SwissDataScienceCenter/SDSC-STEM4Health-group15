@@ -1,0 +1,9 @@
+   v3 (dd 30 bags) on core states            vcd=6.942  tcd=6.909  substrate=8.066  byproduct=8.751  SCORE=7.667  
+   v3 (dd 30 bags) on core glc               vcd=7.033  tcd=6.930  substrate=7.994  byproduct=8.670  SCORE=7.657  
+   v3 (dd 30 bags) on core mech              vcd=6.926  tcd=6.911  substrate=8.221  byproduct=8.644  SCORE=7.675  
+   v3 (dd 30 bags) on core monod             vcd=6.889  tcd=6.854  substrate=8.067  byproduct=8.681  SCORE=7.623  
+   v3 (dd 30 bags) on core monod_sens        vcd=6.953  tcd=6.891  substrate=8.211  byproduct=8.688  SCORE=7.686  
+   v3 (dd 30 bags) on core twopop            vcd=6.976  tcd=6.938  substrate=8.440  byproduct=8.662  SCORE=7.754  
+   v3 (dd 30 bags) on core avg               vcd=6.982  tcd=6.924  substrate=8.081  byproduct=8.694  SCORE=7.670  
+9 data-driven branch 30 bags, all cores      vcd=6.771  tcd=6.747  substrate=7.514  byproduct=8.177  SCORE=7.302  simplex weights
+done in 422s
