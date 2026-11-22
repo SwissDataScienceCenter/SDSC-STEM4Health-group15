@@ -1800,6 +1800,10 @@ stages:
       md5: f1f4c7328b64a3ec0e8c9357ceacbca0
       size: 938
     outs:
+    - path: data/interim/option_a/oof_predictions.csv
+      hash: md5
+      md5: 2087821096d8a4595887dd32b3d06617
+      size: 154178
     - path: data/processed/submission_option_a.csv
       hash: md5
       md5: a4de14775028006fe6055b81e5a53cd7
@@ -1848,6 +1852,75 @@ stages:
       md5: 748821857f0bde317217ee33fb08e71c
       size: 122119
     - path: reports/metrics/anomaly.json
+      hash: md5
+      md5: eafec44269936f2495c994e6cdb76e25
+      size: 771
+  anomaly@option_a:
+    cmd: python -m bioreactor_decoding.anomaly --model option_a
+    deps:
+    - path: bioreactor_decoding/anomaly.py
+      hash: md5
+      md5: a9b596726db6d822adcafeed9721c2f7
+      size: 20599
+    - path: data/interim/option_a/oof_predictions.csv
+      hash: md5
+      md5: 2087821096d8a4595887dd32b3d06617
+      size: 154178
+    - path: data/raw
+      hash: md5
+      md5: c63678383749d00b7e1a919659569e28.dir
+      size: 217699
+      nfiles: 3
+    outs:
+    - path: reports/anomaly/option_a
+      hash: md5
+      md5: f4253f3cee35b973ed714603f375b67b.dir
+      size: 3862
+      nfiles: 5
+    - path: reports/figures/anomaly_option_a_cell_level.png
+      hash: md5
+      md5: 2d4ef3d3b5fb30c800de99f3e062233f
+      size: 314122
+    - path: reports/figures/anomaly_option_a_detection.png
+      hash: md5
+      md5: 274604d7501de9aa1adf263b1b8e755a
+      size: 121649
+    - path: reports/metrics/anomaly_option_a.json
+      hash: md5
+      md5: 7b899806f63699d943fc279af24122af
+      size: 769
+  anomaly@hybrid_v7:
+    cmd: python -m bioreactor_decoding.anomaly --model hybrid_v7
+    deps:
+    - path: bioreactor_decoding/anomaly.py
+      hash: md5
+      md5: a9b596726db6d822adcafeed9721c2f7
+      size: 20599
+    - path: data/external/hybrid_v3_tr
+      hash: md5
+      md5: a07636430ed1c020196282142e7eddfd.dir
+      size: 2112218
+      nfiles: 8
+    - path: data/raw
+      hash: md5
+      md5: c63678383749d00b7e1a919659569e28.dir
+      size: 217699
+      nfiles: 3
+    outs:
+    - path: reports/anomaly/hybrid_v7
+      hash: md5
+      md5: 21ec3bd13cc06d67a30edfcf39efc63d.dir
+      size: 3821
+      nfiles: 5
+    - path: reports/figures/anomaly_hybrid_v7_cell_level.png
+      hash: md5
+      md5: 8d5eb48131025107e81177ae35898a97
+      size: 313056
+    - path: reports/figures/anomaly_hybrid_v7_detection.png
+      hash: md5
+      md5: 748821857f0bde317217ee33fb08e71c
+      size: 122119
+    - path: reports/metrics/anomaly_hybrid_v7.json
       hash: md5
       md5: eafec44269936f2495c994e6cdb76e25
       size: 771

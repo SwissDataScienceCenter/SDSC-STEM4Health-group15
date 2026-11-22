@@ -1,22 +1,27 @@
 """Anomaly detection from normal batches only (Triantafyllia, branch anomalies_detection).
 
-A port of notebooks/anomaly_v7.ipynb, which is the narrative and calls these functions. The
-computations are the notebook's, unchanged; only state the notebook kept in globals is passed
-explicitly. Hybrid v7 is the model of normal behaviour: its out-of-fold residuals
-log(measured / predicted) describe how far a normal batch deviates from its forecast.
+A port of notebooks/anomaly_v7.ipynb (and anomaly_option_a.ipynb, the same analysis on another
+model), which is the narrative and calls these functions. The computations are the notebook's,
+unchanged; only state the notebook kept in globals is passed explicitly. A forecast model is
+the model of normal behaviour: its out-of-fold residuals log(measured / predicted) describe how
+far a normal batch deviates from its forecast. The model is a parameter (`--model`, one DVC
+stage per entry of anomaly.models in params.yaml); everything after step 1 is model-agnostic.
 
-  1. residuals      the v7 blend of its four members' out-of-fold predictions (7 folds)
+  1. residuals      the model's out-of-fold predictions (7 folds) of the 49 labelled batches
   2. batch level    D1 (RMS of robust z) and PCA T2 / SPE, each batch against the other 48
   3. cell level     spikes and persistent deviations, at a standard and a strict level
   4. injected faults  detection rates, since no rejected batch exists
   5. alarm share    share of real alarms when bad batches are rare
   6. test inputs    the 12 test batches have no measurements: their inputs only
 
-The v7 files (members_oof_v7c.csv, blend_weights.csv) are read from data/external/hybrid_v3_tr,
-imported from branch hybrid_v3_tr at 863e751 with Option A's inputs (DVC-tracked).
+Residual sources (RESIDUAL_SOURCES):
+  option_a   data/interim/option_a/oof_predictions.csv, written by the option_a stage
+  hybrid_v7  the v7 blend of its members' out-of-fold predictions (members_oof_v7c.csv,
+             blend_weights.csv), imported into data/external/hybrid_v3_tr (DVC-tracked)
 
-    python -m bioreactor_decoding.anomaly
--> reports/anomaly/*.csv, reports/metrics/anomaly.json, reports/figures/anomaly_v7_*.png
+    python -m bioreactor_decoding.anomaly --model option_a
+-> reports/anomaly/<model>/*.csv, reports/metrics/anomaly_<model>.json,
+   reports/figures/anomaly_<model>_*.png
 """
 
 import json
@@ -28,7 +33,13 @@ import numpy as np
 import pandas as pd
 import typer
 
-from bioreactor_decoding.config import EXTERNAL_DATA_DIR, FIGURES_DIR, METRICS_DIR, REPORTS_DIR
+from bioreactor_decoding.config import (
+    EXTERNAL_DATA_DIR,
+    FIGURES_DIR,
+    INTERIM_DATA_DIR,
+    METRICS_DIR,
+    REPORTS_DIR,
+)
 from bioreactor_decoding.dataset import RAW_PATH, TARGETS, TEMPLATE_PATH
 
 app = typer.Typer()
@@ -38,6 +49,8 @@ MEM = ["pf3a", "a3i_fp", "states", "tp"]  # the four members of hybrid v7
 V7_DIR = EXTERNAL_DATA_DIR / "hybrid_v3_tr" / "outputs"
 V7_MEMBERS = V7_DIR / "stack_v5" / "cv" / "members_oof_v7c.csv"
 V7_WEIGHTS = V7_DIR / "hybrid_v7" / "blend_weights.csv"
+OPTION_A_OOF = INTERIM_DATA_DIR / "option_a" / "oof_predictions.csv"
+LABELS = {"option_a": "Option A", "hybrid_v7": "v7"}  # model names in figure legends
 
 
 # --- 1. residuals of the normal-behaviour model -------------------------------------------
@@ -62,6 +75,21 @@ def blend(m: pd.DataFrame, W: pd.DataFrame) -> pd.DataFrame:
         P[v] = out
     P["tcd"] = np.maximum(P.tcd, P.vcd)
     return P
+
+
+def oof_v7() -> tuple[pd.DataFrame, pd.DataFrame]:
+    m, W = load_v7()
+    return m, blend(m, W)
+
+
+def oof_option_a() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Option A's out-of-fold predictions after its finishing steps (columns f|<variable>)."""
+    m = pd.read_csv(OPTION_A_OOF, dtype={"batch_id": str})
+    return m, pd.DataFrame({v: m["f|" + v] for v in T})
+
+
+# (m, P): m has batch_id, day and obs_<variable> per labelled sample, P the predictions
+RESIDUAL_SOURCES = {"option_a": oof_option_a, "hybrid_v7": oof_v7}
 
 
 def blend_mape(m: pd.DataFrame, P: pd.DataFrame) -> dict[str, float]:
@@ -362,7 +390,7 @@ EXAMPLES = [("Batch34", "byproduct"), ("Batch29", "byproduct"), ("Batch46", "sub
             ("Batch4", "byproduct")]  # fmt: skip
 
 
-def cell_level_figure(Obs, Pred, ids):
+def cell_level_figure(Obs, Pred, ids, label="v7"):
     OBS = {v: np.exp(Obs[:, 13 * j : 13 * (j + 1)]) for j, v in enumerate(T)}
     PRD = {v: np.exp(Pred[:, 13 * j : 13 * (j + 1)]) for j, v in enumerate(T)}
     days = np.arange(1, 14)
@@ -374,7 +402,7 @@ def cell_level_figure(Obs, Pred, ids):
                         color="#9ecae1", alpha=0.5)  # fmt: skip
         i = ids.index(b)
         ax.plot(days, OBS[v][i], color="#c0392b", lw=2, label="measured")
-        ax.plot(days, PRD[v][i], "k--", lw=1.2, label="v7 prediction")
+        ax.plot(days, PRD[v][i], "k--", lw=1.2, label=f"{label} prediction")
         ax.set_title(f"{b}, {v}", fontsize=10)
         ax.set_xlabel("day")
     axs[0].legend(fontsize=8)
@@ -402,10 +430,9 @@ def detection_figure(tab):
 # --- the whole analysis ---------------------------------------------------------------------
 
 
-def run() -> dict:
-    """Every result of the analysis, in the notebook's order."""
-    m, W = load_v7()
-    P = blend(m, W)
+def run(model: str = "hybrid_v7") -> dict:
+    """Every result of the analysis, in the notebook's order, on `model`'s residuals."""
+    m, P = RESIDUAL_SOURCES[model]()
     ids, Obs, Pred, R, RV = residuals(m, P)
     batch, THR = batch_scores(R, ids)
     tab = fault_table(R, RV, THR, ids)
@@ -447,8 +474,11 @@ def metrics(r: dict) -> dict:
 
 
 @app.command()
-def main(output_dir: Path = ANOMALY_DIR, figures_dir: Path = FIGURES_DIR):
-    r = run()
+def main(model: str = "option_a", figures_dir: Path = FIGURES_DIR):
+    if model not in RESIDUAL_SOURCES:
+        raise typer.BadParameter(f"{model}: no residual source (have {list(RESIDUAL_SOURCES)})")
+    r = run(model)
+    output_dir = ANOMALY_DIR / model
     output_dir.mkdir(parents=True, exist_ok=True)
     r["batch"].rename_axis("batch").round(4).to_csv(output_dir / "batch_scores.csv")
     r["dev"].to_csv(output_dir / "cell_deviations.csv", index=False)
@@ -457,15 +487,18 @@ def main(output_dir: Path = ANOMALY_DIR, figures_dir: Path = FIGURES_DIR):
     r["inputs"].to_csv(output_dir / "test_input_check.csv", index=False)
     figures_dir.mkdir(parents=True, exist_ok=True)
     for name, fig in (
-        ("anomaly_v7_cell_level.png", cell_level_figure(r["Obs"], r["Pred"], r["ids"])),
-        ("anomaly_v7_detection.png", detection_figure(r["tab"])),
+        (
+            f"anomaly_{model}_cell_level.png",
+            cell_level_figure(r["Obs"], r["Pred"], r["ids"], LABELS[model]),
+        ),
+        (f"anomaly_{model}_detection.png", detection_figure(r["tab"])),
     ):
         fig.savefig(figures_dir / name, dpi=130)
         plt.close(fig)
     out = metrics(r)
     METRICS_DIR.mkdir(parents=True, exist_ok=True)
-    (METRICS_DIR / "anomaly.json").write_text(json.dumps(out, indent=2) + "\n")
-    logger.success(f"anomaly: {json.dumps(out)}")
+    (METRICS_DIR / f"anomaly_{model}.json").write_text(json.dumps(out, indent=2) + "\n")
+    logger.success(f"anomaly {model}: {json.dumps(out)}")
 
 
 if __name__ == "__main__":

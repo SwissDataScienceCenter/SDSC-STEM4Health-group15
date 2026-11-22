@@ -97,6 +97,7 @@ stages:
       - bioreactor_decoding/modeling/option_a_src
     outs:
       - data/processed/submission_option_a.csv
+      - data/interim/option_a/oof_predictions.csv  # out-of-fold, read by anomaly@option_a
       - reports/holdout/option_a.csv:
           cache: false
       - reports/option_a/blend_weights.csv:
@@ -105,23 +106,27 @@ stages:
       - reports/metrics/option_a.json:
           cache: false
 
-  # Anomaly detection on hybrid v7's out-of-fold residuals (notebooks/anomaly_v7.ipynb).
+  # Anomaly detection on a forecast model's out-of-fold residuals (notebooks/anomaly_v7.ipynb),
+  # one stage per model in anomaly.models (params.yaml): its residuals are the only input that
+  # depends on the model. dvc repro anomaly@option_a
   anomaly:
-    cmd: python -m bioreactor_decoding.anomaly
-    deps:
-      - data/raw
-      - data/external/hybrid_v3_tr
-      - bioreactor_decoding/anomaly.py
-    outs:
-      - reports/anomaly:
-          cache: false
-      - reports/figures/anomaly_v7_cell_level.png:
-          cache: false
-      - reports/figures/anomaly_v7_detection.png:
-          cache: false
-    metrics:
-      - reports/metrics/anomaly.json:
-          cache: false
+    foreach: ${anomaly.models}
+    do:
+      cmd: python -m bioreactor_decoding.anomaly --model ${key}
+      deps:
+        - data/raw
+        - ${item}
+        - bioreactor_decoding/anomaly.py
+      outs:
+        - reports/anomaly/${key}:
+            cache: false
+        - reports/figures/anomaly_${key}_cell_level.png:
+            cache: false
+        - reports/figures/anomaly_${key}_detection.png:
+            cache: false
+      metrics:
+        - reports/metrics/anomaly_${key}.json:
+            cache: false
 
   figures:
     cmd: python -m bioreactor_decoding.plots all-figures

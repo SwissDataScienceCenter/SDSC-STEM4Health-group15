@@ -97,7 +97,9 @@ for m in FAMILY:
 R = pd.DataFrame(rows).set_index("model")
 v7 = load("hybrid_v7.json")
 oa = load("option_a.json")  # the final model
-anom = load("anomaly.json")
+anom = load("anomaly_option_a.json")  # on the final model
+anom_v7 = load("anomaly_hybrid_v7.json")
+dev_v7 = pd.read_csv("anomaly/hybrid_v7/cell_deviations.csv")
 
 
 def md(df, index=True, floatfmt=".2f"):
@@ -516,8 +518,8 @@ fitted on about 42 of the 49 labelled batches, the other holdout batches include
 # Screening for abnormal batches
 
 A forecast model also defines what *normal* looks like. Triantafyllia's anomaly analysis
-(`notebooks/anomaly_v7.ipynb`) uses hybrid v7's out-of-fold residuals, log(measured /
-predicted), of the 49 labelled batches as the normal behaviour, without any rejected batch or
+(`notebooks/anomaly_v7.ipynb`) uses the out-of-fold residuals, log(measured / predicted), of
+the final model, Option A, on the 49 labelled batches as the normal behaviour, without any rejected batch or
 label. Each batch is compared with the other 48. A **batch score** (robust z-values and a PCA
 of the residual patterns) catches diffuse deviations, and **cell-level rules** catch one-day
 spikes and deviations that persist for three days or more.
@@ -526,7 +528,7 @@ spikes and deviations that persist for three days or more.
 #| label: tbl-anomaly
 #| tbl-colwidths: [12,14,14,10,10,20,20]
 #| tbl-cap: "Deviations flagged in the labelled batches at the standard level (z-values against the other 48 batches)."
-dev = pd.read_csv("anomaly/cell_deviations.csv")
+dev = pd.read_csv("anomaly/option_a/cell_deviations.csv")
 dev["variable"] = dev["variable"].map(VAR)
 md(dev, index=False, floatfmt=".1f")
 ```
@@ -536,9 +538,13 @@ The batch score flags `{python} anom["batch_level"]["flagged"]` of 49 batches, t
 `{python} anom["cell_level"]["flagged_strict"]`). The two byproduct values on day 13 jump about
 threefold within a day, which suggests a measurement or sampling problem rather than
 metabolism. These are candidates for a process expert, not confirmed anomalies: the flagged
-share matches the false-alarm rate the thresholds were set to.
+share matches the false-alarm rate the thresholds were set to. The same analysis on hybrid
+v7's residuals (stage `anomaly@hybrid_v7`) flags
+`{python} anom_v7["cell_level"]["flagged_standard"]` batches at the cell level, of which
+`{python} len(set(dev_v7["batch"]) & set(dev["batch"]))` are also flagged here: the clear
+cases do not depend on the model, the borderline ones do.
 
-![Flagged examples: measured (red) and v7 prediction (dashed), against all labelled batches (grey, 5-95% band in blue).](figures/anomaly_v7_cell_level.png)
+![Flagged examples: measured (red) and Option A prediction (dashed), against all labelled batches (grey, 5-95% band in blue).](figures/anomaly_option_a_cell_level.png)
 
 No rejected batch exists, so detection was tested by injecting faults into normal batches.
 Faults of about 65% are detected in
@@ -553,7 +559,7 @@ can only be checked on their inputs. The PCA check flags
 `{python} " and ".join(anom["test_inputs"]["flagged"])`. Both have a day-0 value outside the
 range of the labelled batches.
 
-![Share of faulty batches flagged, by fault type and size.](figures/anomaly_v7_detection.png)
+![Share of faulty batches flagged, by fault type and size.](figures/anomaly_option_a_detection.png)
 
 # Reproducibility
 
@@ -574,8 +580,6 @@ range of the labelled batches.
   Option A and hybrid v7 are compared with our models on the leaderboard, and Option A also
   through its out-of-fold predictions of our holdout batches, which are not quite our holdout
   protocol.
-* The anomaly screen uses v7's residuals. Rebuilding it on Option A's would match the final
-  model; we kept the analysis as it was done.
 * Data-driven parts exploit the adaptive feeding, which helps the forecast but would break
   under a new feeding strategy. A deployment for process design should restrict stage 2 to
   causal inputs, or at least test it on feeding schedules outside the historical range.

@@ -69,3 +69,10 @@ hybrid_lite:
 # (bioreactor_decoding.modeling.external_v7). Change the commit to pick up a new version.
 hybrid_v7:
   ref: 18810698a46e0a31e890e737562f8ebf186df7cf
+
+# Anomaly detection: one run per forecast model, each with the file its out-of-fold residuals
+# come from (bioreactor_decoding.anomaly.RESIDUAL_SOURCES). option_a is the final model.
+anomaly:
+  models:
+    option_a: data/interim/option_a/oof_predictions.csv
+    hybrid_v7: data/external/hybrid_v3_tr

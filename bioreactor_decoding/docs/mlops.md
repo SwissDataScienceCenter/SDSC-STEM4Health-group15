@@ -18,7 +18,8 @@ flowchart LR
     ext --> anomaly
     option_a --> figures
     raw --> v7["hybrid_v7<br/>pinned commit"]
-    raw --> anomaly["anomaly<br/>on v7's residuals"]
+    option_a -- out-of-fold --> anomaly["anomaly@model<br/>on that model's residuals"]
+    raw --> anomaly
 ```
 
 Option A, the final model, is ported from branch `hybrid_v3_tr`: its code is in
@@ -98,7 +99,7 @@ hybrids. Results, including the rejected ideas, go in [the experiment log](exper
 | CV scores per fold | `reports/cv/<model>.csv` | yes |
 | Metrics (CV and holdout MAPE) | `reports/metrics/cv_<model>.json`, `<model>.json` | yes |
 | Holdout predictions (no measured values) | `reports/holdout/<model>.csv` | yes |
-| Anomaly detection tables (scores, flags, rates) | `reports/anomaly/*.csv`, `reports/metrics/anomaly.json` | yes |
+| Anomaly detection tables (scores, flags, rates) | `reports/anomaly/<model>/*.csv`, `reports/metrics/anomaly_<model>.json` | yes |
 | Figures | `reports/figures/*.png` | yes |
 | Submissions | `data/processed/submission_<model>.csv` | no (derived from the data) |
 
@@ -257,12 +258,20 @@ original commit byte for byte. `reports/metrics/option_a.json` records:
 
 `dvc repro anomaly` (`bioreactor_decoding/anomaly.py`, narrative in
 `notebooks/anomaly_v7.ipynb`, from branch `anomalies_detection`) screens the 49 labelled
-batches for abnormal behaviour, using only normal batches: hybrid v7's out-of-fold residuals,
-log(measured / predicted), define normal. It reports a batch score (robust z and PCA T²/SPE,
-each batch against the other 48), cell-level rules for spikes and persistent deviations
-(standard and strict level), detection rates on injected faults, and an input-only check of
-the 12 test batches. The v7 files it needs are among the imported inputs in `data/external/`. Results:
-`reports/anomaly/`, `reports/metrics/anomaly.json`, `reports/figures/anomaly_v7_*.png`.
+batches for abnormal behaviour, using only normal batches: a forecast model's out-of-fold
+residuals, log(measured / predicted), define normal. It reports a batch score (robust z and
+PCA T²/SPE, each batch against the other 48), cell-level rules for spikes and persistent
+deviations (standard and strict level), detection rates on injected faults, and an input-only
+check of the 12 test batches.
+
+The model is a parameter: `anomaly.models` in `params.yaml` maps each model to the file its
+residuals come from, and DVC makes one stage per entry (`anomaly@option_a`, the final model;
+`anomaly@hybrid_v7`, the original analysis). Option A's residuals come from the out-of-fold
+predictions the `option_a` stage writes, so a new version of Option A reruns its anomaly
+screen. Adding a model takes one line in `params.yaml` and one function in
+`anomaly.RESIDUAL_SOURCES`; the rest of the analysis does not depend on the model.
+Results: `reports/anomaly/<model>/`, `reports/metrics/anomaly_<model>.json`,
+`reports/figures/anomaly_<model>_*.png`.
 
 ## Resource footprint
 

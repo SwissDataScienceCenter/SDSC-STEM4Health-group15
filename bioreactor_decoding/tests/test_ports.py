@@ -1,7 +1,7 @@
 """The ported team work reproduces what is on its branches.
 
-anomaly.py must give the numbers printed in notebooks/anomaly_v7.ipynb on branch
-anomalies_detection, and ported Option A the CV and submission committed on branch
+anomaly.py must give the numbers printed in notebooks/anomaly_v7.ipynb and
+anomaly_option_a.ipynb on branch anomalies_detection, and ported Option A the CV and submission committed on branch
 hybrid_v3_tr. Skipped without the raw data or the imported inputs (data/external, DVC).
 """
 
@@ -23,7 +23,32 @@ pytestmark = [
 
 @pytest.fixture(scope="module")
 def result():
-    return anomaly.run()
+    return anomaly.run("hybrid_v7")
+
+
+@pytest.mark.skipif(not anomaly.OPTION_A_OOF.exists(), reason="run dvc repro option_a first")
+def test_anomaly_on_option_a_matches_its_notebook():
+    """Values as printed in notebooks/anomaly_option_a.ipynb (same analysis, Option A's
+    residuals); the out-of-fold file comes from our option_a stage, not the branch."""
+    r = anomaly.run("option_a")
+    assert {v: round(x, 2) for v, x in r["mape"].items()} == {
+        "vcd": 6.9, "tcd": 6.82, "substrate": 7.24, "byproduct": 8.25,
+    }  # fmt: skip
+    assert f"{r['R'].std(0).mean():.3f}" == "0.097"
+    thr = r["THR"]
+    assert (f"{thr[0]:.2f}", f"{thr[1]:.2f}", f"{thr[2]:.1f}") == ("1.75", "5.87", "124.0")
+    assert int(r["batch"]["flagged"].sum()) == 6
+    dev = r["dev"]
+    assert list(zip(dev["batch"], dev["type"], dev["variable"], dev["days"])) == [
+        ("Batch46", "persistent", "substrate", "5-7"),
+        ("Batch42", "persistent", "substrate", "6-10"),
+        ("Batch50", "persistent", "substrate", "4-6"),
+        ("Batch34", "spike", "byproduct", "13"),
+        ("Batch29", "spike", "byproduct", "13"),
+        ("Batch3", "spike", "vcd", "8"),
+    ]
+    assert dev["strict level"].tolist() == ["yes", "no", "no", "yes", "yes", "no"]
+    assert r["tab"].loc[("no fault", "")].round(2).tolist() == [0.12, 0.12, 0.06]
 
 
 def test_anomaly_matches_the_original_notebook(result):
