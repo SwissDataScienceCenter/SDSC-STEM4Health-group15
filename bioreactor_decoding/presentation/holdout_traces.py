@@ -4,8 +4,11 @@
 (or `make videos`). Reads presentation/data/<MODEL>.csv (export_traces.py).
 
 Fixed elements: four stacked axes sharing the day axis (VCD, TCD, substrate, byproduct) and
-a legend. For each holdout batch, both traces grow together from the given day-0 values;
-the batch number and its MAPE are shown in the legend. The y ranges are the same in every
+a legend, plus a feeds strip under the axes: one row per feed (B, C, D, substrate), one tick
+per dose with its height proportional to the amount (relative to that feed's largest dose,
+since the feeds' scales differ ~500-fold). For each holdout batch, both traces grow together
+from the given day-0 values and each feed tick appears, with a short flash, as time passes
+it; the batch number and its MAPE are shown in the legend. The y ranges are the same in every
 video (computed over all exported models), so the three videos can be compared directly.
 """
 
@@ -48,6 +51,12 @@ LABELS = {"vcd": "VCD", "tcd": "TCD", "substrate": "Substrate", "byproduct": "By
 # Dark palette, validated with the dataviz validator (CVD and contrast checks pass).
 SURFACE, TEXT, TEXT_2, GRID = "#1a1a19", "#f0efec", "#c3c2b7", "#3a3a37"
 ACTUAL, PRED = "#3987e5", "#d95926"
+# Feeds: palette slots 3-5 and 7 (slot 6 fails CVD next to aqua/orange). Adjacent rows pass
+# CVD and normal-vision checks; B and D (aqua/magenta, close for deutan) are not adjacent and
+# every row is labelled, so position carries the type too.
+FEEDS = {"feed_b": ("Feed B", "#199e70"), "feed_c": ("Feed C", "#c98500"),
+         "feed_d": ("Feed D", "#d55181"), "feed_substrate": ("Substrate", "#9085e9")}  # fmt: skip
+FLASH_DAYS = 1.0  # a new dose flashes for ~0.3 s (the sweep runs ~3.3 days per second)
 DAYS = 14
 GROW_SECONDS, HOLD_SECONDS = 4.0, 1.2
 
@@ -61,7 +70,7 @@ def txt(text, font_size, color):
 
 def y_max() -> dict:
     """Common y range per variable over every exported model (actual and predicted)."""
-    frames = [pd.read_csv(p) for p in sorted(DATA.glob("*.csv"))]
+    frames = [pd.read_csv(p) for p in sorted(DATA.glob("*.csv"))]  # feeds are in data/feeds/
     allv = pd.concat(frames)
     return {c: 1.08 * allv[[f"{c}_actual", f"{c}_pred"]].to_numpy().max() for c in TARGETS}
 
@@ -111,7 +120,7 @@ class HoldoutTraces(Scene):
         legend.arrange(RIGHT, buff=0.5).to_edge(RIGHT, buff=0.4).match_y(sub)
 
         axes = {}
-        height, gap, top_y = 1.25, 0.28, 2.1
+        height, gap, top_y = 1.05, 0.22, 2.2
         for i, c in enumerate(TARGETS):
             step = nice_step(tops[c])
             ax = Axes(
@@ -132,8 +141,29 @@ class HoldoutTraces(Scene):
             self.add(ax, ylab, ticks)
             axes[c] = ax
         bottom = axes[TARGETS[-1]]
+
+        # Feeds strip: one row per feed under the bottom axis, sharing its day axis.
+        row_h, strip_top = 0.2, bottom.get_bottom()[1] - 0.18
+        x0, x1 = bottom.c2p(0, 0)[0], bottom.c2p(DAYS, 0)[0]
+        rows = {}
+        for i, (name, (label, color)) in enumerate(FEEDS.items()):
+            base = strip_top - (i + 1) * row_h
+            rows[name] = base
+            self.add(Line([x0, base, 0], [x1, base, 0], color=GRID, stroke_width=1))
+            swatch = Dot(radius=0.045, color=color)
+            lab = txt(label, font_size=13, color=TEXT_2)
+            key_ = VGroup(lab, swatch).arrange(RIGHT, buff=0.1)
+            key_.move_to([x0 - 0.2 - key_.width / 2, base + row_h * 0.35, 0])
+            self.add(key_)
+        strip_bottom = strip_top - len(FEEDS) * row_h
+        feeds_title = txt("Feeds", font_size=20, color=TEXT)
+        feeds_title.next_to([x0, (strip_top + strip_bottom) / 2, 0], LEFT, buff=1.55)
+        self.add(feeds_title)
+        feed_events = pd.read_csv(DATA / "feeds" / "feeds.csv")
+
         days = VGroup(*[
-            txt(str(d), font_size=15, color=TEXT_2).next_to(bottom.c2p(d, 0), DOWN, buff=0.12)
+            txt(str(d), font_size=15, color=TEXT_2)
+            .move_to([bottom.c2p(d, 0)[0], strip_bottom - 0.16, 0])
             for d in range(0, DAYS + 1, 2)
         ])  # fmt: skip
         xlab = txt("Culture day", font_size=20, color=TEXT_2).next_to(days, DOWN, buff=0.1)
@@ -167,11 +197,50 @@ class HoldoutTraces(Scene):
                         for a, v in zip(t, y) if a <= T.get_value() + 1e-9
                     ])  # fmt: skip
 
+                def error_label(ax=ax, ya=ya, yp=yp, t=t, T=T):
+                    """Percent error (predicted vs. actual) at the leading edge, above it.
+
+                    Between samples both lines are linear, so the error shown is the one
+                    between the drawn lines; at each sample it is the true point error.
+                    """
+                    now = min(T.get_value(), t[-1])
+                    a, p = np.interp(now, t, ya), np.interp(now, t, yp)
+                    err = 100 * (p - a) / a
+                    label = txt("0.0%" if abs(err) < 0.05 else f"{err:+.1f}%", 16, TEXT)
+                    top = ax.c2p(now, max(a, p))
+                    if top[1] + 0.12 + label.height > ax.get_top()[1]:  # no room above
+                        label.next_to(ax.c2p(now, min(a, p)), DOWN, buff=0.12)
+                    else:
+                        label.next_to(top, UP, buff=0.12)
+                    return label
+
                 moving.add(
                     always_redraw(lambda f=curve, ax=ax, y=ya: f(ax, y, ACTUAL, 3)),
                     always_redraw(dots),
                     always_redraw(lambda f=curve, ax=ax, y=yp: f(ax, y, PRED, 4)),
+                    always_redraw(error_label),
                 )
+            fe = feed_events.loc[feed_events["batch_id"] == b]
+
+            def feed_ticks(fe=fe, T=T):
+                now = T.get_value()
+                ticks = VGroup()
+                for name, te, rel in zip(fe["feed"], fe["t"], fe["rel"]):
+                    if te > now:
+                        continue
+                    x, base = bottom.c2p(te, 0)[0], rows[name]
+                    h = max(rel, 0.12) * row_h * 0.85
+                    age = (now - te) / FLASH_DAYS
+                    flash = max(0.0, 1.0 - age)  # 1 when the dose happens, 0 after FLASH_DAYS
+                    color = FEEDS[name][1]
+                    ticks.add(Line([x, base, 0], [x, base + h, 0], color=color,
+                                   stroke_width=3 + 5 * flash))  # fmt: skip
+                    if flash > 0:
+                        ticks.add(Dot([x, base + h, 0], radius=0.03 + 0.07 * flash, color=color,
+                                      fill_opacity=flash))  # fmt: skip
+                return ticks
+
+            moving.add(always_redraw(feed_ticks))
             number = b.replace("Batch", "")
             new_label = txt(f"Batch {number}", font_size=24, color=TEXT)
             new_label.to_edge(RIGHT, buff=0.4).match_y(title)
@@ -182,7 +251,8 @@ class HoldoutTraces(Scene):
             self.play(FadeOut(batch_label), FadeIn(new_label), run_time=0.4)
             batch_label = new_label
             self.play(T.animate.set_value(t[-1]), run_time=GROW_SECONDS, rate_func=linear)
-            self.play(FadeIn(score), run_time=0.3)
+            # let the last flash finish (the traces stop at the last sample anyway)
+            self.play(FadeIn(score), T.animate.set_value(t[-1] + FLASH_DAYS), run_time=0.3)
             self.wait(HOLD_SECONDS)
             self.play(FadeOut(moving), FadeOut(score), run_time=0.4)
         self.play(FadeOut(batch_label), run_time=0.3)

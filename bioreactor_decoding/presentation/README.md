@@ -3,6 +3,10 @@
 Three videos of the holdout batches, one per approach, with the same fixed layout: four
 stacked axes (VCD, TCD, substrate, byproduct) sharing the day axis, actual (blue, dots) and
 predicted (orange) growing together, batch number and its MAPE in the legend.
+Under the axes, a feeds strip shows the model inputs: one row per feed (B, C, D, substrate),
+one tick per dose, flashing as it happens. Tick height is the dose relative to that feed's
+largest dose in the data (the feeds' scales differ ~500-fold); every logged dose is shown,
+since the log has a row only when a dose was given (no zero amounts, so no threshold).
 
 | Video | Model | What it is |
 |---|---|---|
@@ -13,6 +17,21 @@ predicted (orange) growing together, batch number and its MAPE in the legend.
 Predictions are those of the models fitted on the dev batches only (`reports/holdout/`), so
 every batch shown is unseen. Hybrid v7 is not among them: it has no predictions for our
 holdout batches (it was validated with its own folds).
+
+## Percent-error videos
+
+`holdout_errors.py` (`make error-videos`) shows the percent error, 100 × (predicted − actual)
+/ actual, instead of the values, on one shared y range (−20% to +20%, line at 0; errors
+beyond are drawn at the edge with ▲/▼). One approach is added per video:
+
+| Video | Static | Evolving |
+|---|---|---|
+| `errors_1.mp4` | – | mechanistic |
+| `errors_2.mp4` | mechanistic | machine learning |
+| `errors_3.mp4` | mechanistic, machine learning | hybrid |
+
+Colours follow the model: mechanistic orange, ML blue, hybrid off-white (aqua is feed B).
+The legend shows each model's MAPE for the batch; the feeds strip is the same as above.
 
 ## Setup (once per machine)
 

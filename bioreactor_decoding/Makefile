@@ -80,6 +80,15 @@ report:
 	cd reports && QUARTO_PYTHON="$(CURDIR)/.venv/bin/python" ../.venv/bin/quarto render report.qmd
 
 
+## Render the percent-error videos (one approach added per video) to presentation/media/
+.PHONY: error-videos
+error-videos:
+	.venv/bin/python presentation/export_traces.py
+	cd presentation && for st in 1 2 3; do \
+		STAGE=$$st ../.venv/bin/manim -qh --media_dir media -o errors_$$st holdout_errors.py ErrorTraces; \
+	done
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:

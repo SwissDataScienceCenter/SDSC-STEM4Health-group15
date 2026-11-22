@@ -34,11 +34,25 @@ def traces(model: str) -> pd.DataFrame:
     return df.rename(columns={"elapsed_time": "t"}).sort_values(["batch_id", "t"])
 
 
+def feeds() -> pd.DataFrame:
+    """Feed events of the holdout batches: batch_id, t, feed, amount, and rel = amount
+    relative to the largest dose of that feed in the data (scales differ ~500-fold)."""
+    samples, feed_events = load_tables()
+    largest = feed_events.groupby("feed")["amount"].max()
+    holdout = set(samples.loc[samples["role"] == "holdout", "batch_id"])
+    f = feed_events.loc[feed_events["batch_id"].isin(holdout)].copy()
+    f["rel"] = f["amount"] / f["feed"].map(largest)
+    return f.rename(columns={"elapsed_time": "t"})[["batch_id", "t", "feed", "amount", "rel"]]
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     for m in MODELS:
         traces(m).to_csv(OUT / f"{m}.csv", index=False)
         print("wrote", OUT / f"{m}.csv")
+    (OUT / "feeds").mkdir(exist_ok=True)
+    feeds().to_csv(OUT / "feeds" / "feeds.csv", index=False)
+    print("wrote", OUT / "feeds" / "feeds.csv")
 
 
 if __name__ == "__main__":
