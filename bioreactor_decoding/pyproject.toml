@@ -62,5 +62,6 @@ python-preference = "only-managed"
 [dependency-groups]
 presentation = [
     "manim>=0.19",
+    "python-pptx>=1.0.2",
     "quarto-cli>=1.11.9",
 ]

@@ -97,6 +97,12 @@ hero-video:
 		&& ../.venv/bin/manim -qh -s --media_dir media -o hero_end_card hero.py Hero
 
 
+## Build the 5-minute deck presentation/slides/presentation.pptx (after make hero-video)
+.PHONY: slides
+slides:
+	.venv/bin/python presentation/slides/build_slides.py
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:

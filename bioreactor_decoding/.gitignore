@@ -208,3 +208,5 @@ cython_debug/
 # Presentation: traces and videos contain measured values
 /presentation/data/
 /presentation/media/
+/presentation/slides/figures/
+/presentation/slides/presentation.pptx
