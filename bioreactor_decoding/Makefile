@@ -57,6 +57,23 @@ metrics:
 	PATH="$(CURDIR)/.venv/bin:$$PATH" dvc metrics show
 
 
+MAMBA_ENV = /home/renku/work/.micromamba/envs/bioreactor-presentation
+
+## Install the presentation group (Manim), built against presentation/environment.yml
+.PHONY: presentation-env
+presentation-env:
+	PATH="$(MAMBA_ENV)/bin:$$PATH" PKG_CONFIG_PATH="$(MAMBA_ENV)/lib/pkgconfig" \
+	LDFLAGS="-Wl,-rpath,$(MAMBA_ENV)/lib" uv sync --group presentation
+
+## Render the presentation videos (holdout traces of three models) to presentation/media/
+.PHONY: videos
+videos:
+	.venv/bin/python presentation/export_traces.py
+	cd presentation && for m in mechanistic_lite ml_sensors hybrid_blend; do \
+		MODEL=$$m ../.venv/bin/manim -qh --media_dir media -o $$m holdout_traces.py HoldoutTraces; \
+	done
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:

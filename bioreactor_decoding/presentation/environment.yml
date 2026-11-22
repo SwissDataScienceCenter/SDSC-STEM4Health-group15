@@ -1,0 +1,13 @@
+# Native libraries for Manim (Python packages come from uv: `uv sync --group presentation`).
+# Create once per machine; see presentation/README.md:
+#   micromamba create -y -r /home/renku/work/.micromamba -f presentation/environment.yml
+name: bioreactor-presentation
+channels:
+  - conda-forge
+dependencies:
+  - cairo
+  - pango
+  - glib
+  - harfbuzz
+  - fribidi
+  - pkg-config

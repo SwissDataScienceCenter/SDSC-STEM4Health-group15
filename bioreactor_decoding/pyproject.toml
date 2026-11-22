@@ -44,7 +44,7 @@ requires-python = "~=3.12.0"
 [tool.ruff]
 line-length = 99
 src = ["bioreactor_decoding"]
-include = ["pyproject.toml", "bioreactor_decoding/**/*.py"]
+include = ["pyproject.toml", "bioreactor_decoding/**/*.py", "presentation/**/*.py"]
 
 [tool.ruff.lint]
 extend-select = ["I"]  # Add import sorting
@@ -58,3 +58,8 @@ force-sort-within-sections = true
 # uv-managed CPython: it ships the headers C extensions need (the system Python has none).
 python-preference = "only-managed"
 
+
+[dependency-groups]
+presentation = [
+    "manim>=0.19",
+]

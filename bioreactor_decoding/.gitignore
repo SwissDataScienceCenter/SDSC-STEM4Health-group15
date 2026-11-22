@@ -204,3 +204,7 @@ cython_debug/
 
 # Worktree of the team repository for hybrid_v7 (external_v7.py)
 /external/
+
+# Presentation: traces and videos contain measured values
+/presentation/data/
+/presentation/media/
