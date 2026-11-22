@@ -51,6 +51,7 @@ Docs: [problem and data](docs/intro.md) · [pipeline, models, MLOps rules](docs/
         ├── lite.py         <- light stage 1 for hybrid_lite: mechanistic ODE, staged fit
         ├── train.py        <- CV on the dev folds and final fits, per model
         ├── evaluate.py     <- holdout check from the saved dev model
+        ├── compare.py      <- per-fold CV comparison: the decision rule for experiments
         └── predict.py      <- fill the submission template
 ```
 

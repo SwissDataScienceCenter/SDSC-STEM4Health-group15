@@ -180,3 +180,14 @@ def test_evaluate_refuses_a_model_fitted_on_holdout_batches():
     }
     with pytest.raises(ValueError, match="holdout"):
         holdout_predictions(bundle)
+
+
+def test_compare_decision_rule():
+    """Adopt only if better on average and in at least 4 of the 5 folds."""
+    from bioreactor_decoding.modeling.compare import COLS, compare
+
+    base = pd.DataFrame(8.0, index=range(5), columns=COLS)
+    better_4 = base - np.array([[0.1], [0.1], [0.1], [0.1], [-0.05]])
+    better_3 = base - np.array([[0.3], [0.3], [0.3], [-0.1], [-0.1]])
+    assert compare(better_4, base)["better"]
+    assert not compare(better_3, base)["better"]  # large mean gain, but only 3 folds

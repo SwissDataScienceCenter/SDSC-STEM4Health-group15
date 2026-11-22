@@ -26,6 +26,7 @@ flowchart LR
 | `dvc exp run --set-param xgb.max_depth=4` | Try a parameter change as a tracked experiment |
 | `dvc exp show` | Compare experiments side by side |
 | `make test` | Leakage and holdout-isolation tests, among others |
+| `python -m bioreactor_decoding.modeling.compare <model>` | Per-fold CV comparison and verdict |
 | `gto show` (from the git root) | Registered model versions |
 
 DVC decides what is out of date from the hashes recorded in `dvc.lock`: the data, the code each
@@ -57,7 +58,22 @@ Semantic versioning for a model:
 
 A model name stays the same across versions (`hybrid_v3` is the name of the team model, not a
 version number). An idea is tried first as a `dvc exp run` experiment and gets a version only
-if its CV score improves by more than the fold-to-fold noise (sd ≈ 0.4 MAPE).
+if it passes the per-fold rule below.
+
+## Experiments and the decision rule
+
+All runs use the same 5 dev folds, so the per-fold *difference* between two runs is much
+less noisy than the spread of scores across folds. A change is adopted only if its CV MAPE
+is lower on average **and** in at least 4 of the 5 folds:
+
+```bash
+dvc exp run -n my_idea --set-param hybrid_lite.blend_weight=0.6
+python -m bioreactor_decoding.modeling.compare hybrid_lite                  # vs. git HEAD
+python -m bioreactor_decoding.modeling.compare hybrid_blend --baseline hybrid_v3
+```
+
+Screen ideas on `hybrid_lite` (about 12 minutes for a full CV), then confirm on the other
+hybrids. Results, including the rejected ideas, go in [the experiment log](experiments.md).
 
 ## What is stored where
 
