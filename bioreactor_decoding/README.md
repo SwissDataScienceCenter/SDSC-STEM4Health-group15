@@ -19,6 +19,32 @@ Videos: [presentation/README.md](presentation/README.md)
 
 Docs: [problem and data](docs/intro.md) · [pipeline, models, MLOps rules](docs/mlops.md) · [experiment log](docs/experiments.md)
 
+## Model registry
+
+Model versions are git tags managed with [GTO](https://dvc.org/doc/gto), DVC's model registry
+(list on GitHub: [Tags](https://github.com/SwissDataScienceCenter/SDSC-STEM4Health-group15/tags)).
+A tag such as `bioreactor_decoding/dvc.yaml=hybrid_v7@v1.0.0` marks the commit whose code,
+`params.yaml` and `dvc.lock` produced that version, so `git checkout <tag> && make pipeline`
+rebuilds it. The models are declared under `artifacts:` in [dvc.yaml](dvc.yaml).
+
+```bash
+# from the git root, one level above this project
+gto show                                            # every registered model, latest version
+gto describe bioreactor_decoding/dvc.yaml:hybrid_v7 # commit, path, description
+```
+
+| Model | Latest | What it is |
+|---|---|---|
+| `hybrid_v7` | v1.0.0 | Team's leaderboard model (6.752 MAPE); run from a pinned commit, the registered file is the submitted one |
+| `hybrid_blend` | v1.0.0 | Average of `hybrid_v3` and `hybrid_lite`; best in-house protocol (CV 7.95, holdout 6.99) |
+| `hybrid_v3`, `hybrid_lite` | v1.1.0 | Mechanistic ODE + learned correction, full and light stage 1 |
+| `xgb_raw`, `xgb_log_fold_change`, `null_xgb_ensemble` | v1.0.0 | XGBoost baselines (the ensemble averages `xgb_raw` with `null_per_day`) |
+| `null_constant`, `null_per_day` | v1.0.0 | Null models: the bar every model must beat |
+
+Scores of all models, registered or not (`ml_sensors`, `mechanistic_lite`, `hybrid_blend_ml`):
+`make metrics`. Versioning rules (when to bump major/minor/patch, what earns a version):
+[docs/mlops.md](docs/mlops.md#versioning-models).
+
 ## Project Organization
 
 ```
