@@ -119,6 +119,7 @@ if the hackathon's data rules allow it.
 | `hybrid_lite` | `hybrid_v3`'s stage 2 on a mechanistic stage 1 without neural nets | `modeling/lite.py` |
 | `hybrid_blend` | Average of `hybrid_v3` and `hybrid_lite` (current best, CV 7.95) | `modeling/train.py` |
 | `ml_sensors` | Ridge + XGBoost with volume and bolus soft sensors, no ODE (branch `3_ML_models`) | `modeling/ml_sensors.py` |
+| `hybrid_v7` | Tobias' 4-model blend on sensor-assimilated cores (leaderboard 6.752; run from a pinned commit) | `modeling/external_v7.py` |
 | `hybrid_blend_ml` | Geometric average of `hybrid_blend` and `ml_sensors` (CV 7.79, better in 3/5 folds) | `modeling/train.py` |
 
 ### Hybrid v3
@@ -153,6 +154,37 @@ Both come from branch `06_hybrid_tr_based`:
 - **The similarity member** (`similarity_weight` in `params.yaml`; 1/3 in both hybrids) is a
   third blend member for VCD and TCD. It predicts a batch's correction curve from its k most
   similar training batches at t = 0, with distances on descriptors standardised inside `fit`.
+
+### Hybrid v7 (external, pinned commit)
+
+Tobias' best model (branch `hybrid_v3_tr`, commit `1881069`): a geometric blend of four
+models, with weights per variable and per day segment (days 1-6, 7-13):
+
+1. hybrid v3's stage 2 on a **sensor-conditioned Monod core**: 400 per-batch parameter draws
+   (growth, yield, death, lactate consumption, t = 0 cell count) weighted by how well they
+   match the glucose interval implied by the bolus controller and the unlogged volume;
+2. a functional-PCA trajectory model on the same kind of core;
+3. hybrid v3 itself;
+4. hybrid v3's stage 2 on a **two-population core** (growing cells switch to a
+   non-growing, lactate-consuming state).
+
+Glucose is then set to the MAPE-optimal point inside the bolus-rule interval, and TCD to VCD
+times a modelled TCD/VCD ratio. Version history in his protocol (7-fold CV over the 49
+labelled batches): v3 7.674 → v5 stack 7.366 (leaderboard 7.137) → v6 7.244 → **v7 7.187
+(leaderboard 6.752)**.
+
+It is not rewritten: `dvc repro hybrid_v7` checks out the commit in `params.yaml`
+(`hybrid_v7.ref`) as a git worktree in `external/`, runs `src/hybrid_v7.py` unchanged (about
+a minute; the cores' outputs are committed on his branch) and collects the submission and
+`reports/metrics/hybrid_v7.json`. Two caveats, both recorded in that file:
+
+- **Different protocol.** `cv7_mape` is his 7-fold CV, not our 5 dev folds (`cv_mape`), and
+  the stage-2 models inherit the original v3's stacking (stage-1 out-of-fold predictions from
+  the same folds), so it is slightly optimistic. The leaderboard score is the honest number.
+- **The rerun differs slightly from the submitted file** (median 0.22%, one value 19.8%:
+  Batch48, day 2). The rerun is deterministic and independent of the Python environment, so
+  the submitted file was written from cached core outputs that changed before the commit.
+  The registered artifact is the submitted file.
 
 ## Resource footprint
 

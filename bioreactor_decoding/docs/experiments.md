@@ -45,9 +45,10 @@ noise (floor about 6.2). Further gains are likely to be a few hundredths per ide
 
 ## Round 2 (2026-11-22): a different model family
 
-The leaderboard entry 7.137 was most likely the average of Tobias' v3 and Triantafyllia's ML
-model (branch `3_ML_models`), while our `hybrid_blend` averages two near-copies (same stage 2;
-predictions 1.4% apart). Her ML model is ported as `ml_sensors` (`modeling/ml_sensors.py`;
+Motivation: our `hybrid_blend` averages two near-copies (same stage 2; predictions 1.4%
+apart), and averaging different model families usually helps more. (We guessed the leaderboard
+entry 7.137 was v3 averaged with Triantafyllia's ML model; it was Tobias' v5 stack, see
+`hybrid_v7` in docs/mlops.md.) Her ML model is ported as `ml_sensors` (`modeling/ml_sensors.py`;
 reproduces her CV on our folds within 0.04 per variable).
 
 Baseline: `hybrid_blend` CV 7.95.

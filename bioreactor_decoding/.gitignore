@@ -201,3 +201,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Worktree of the team repository for hybrid_v7 (external_v7.py)
+/external/

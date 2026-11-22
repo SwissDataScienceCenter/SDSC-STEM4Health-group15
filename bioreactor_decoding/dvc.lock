@@ -1572,3 +1572,36 @@ stages:
       hash: md5
       md5: 1d4149b996a47641c8a705b317154f79
       size: 14640
+  hybrid_v7:
+    cmd: python -m bioreactor_decoding.modeling.external_v7
+    deps:
+    - path: bioreactor_decoding/modeling/external_v7.py
+      hash: md5
+      md5: 922289b1a1cddb5e62fedf7c80b0febe
+      size: 4325
+    - path: data/raw
+      hash: md5
+      md5: c63678383749d00b7e1a919659569e28.dir
+      size: 217699
+      nfiles: 3
+    params:
+      params.yaml:
+        hybrid_v7:
+          ref: 18810698a46e0a31e890e737562f8ebf186df7cf
+    outs:
+    - path: data/processed/submission_hybrid_v7.csv
+      hash: md5
+      md5: c222d0171fa6ae35444e8a31bb796bd7
+      size: 14656
+    - path: data/processed/submission_hybrid_v7_submitted.csv
+      hash: md5
+      md5: d01fd7d0618d7b8f0a22813c7aca9607
+      size: 14637
+    - path: reports/hybrid_v7/blend_weights.csv
+      hash: md5
+      md5: eeee56e1d47f1488037bc50c7f370f34
+      size: 316
+    - path: reports/metrics/hybrid_v7.json
+      hash: md5
+      md5: 8e98ef630a9d96af864bd7c3fece94f8
+      size: 358

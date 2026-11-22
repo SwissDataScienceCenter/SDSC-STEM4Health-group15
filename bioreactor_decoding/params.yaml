@@ -63,3 +63,8 @@ hybrid_lite:
     max_nfev_stage: 20
     max_nfev_final: 60
     f_scale: 0.1
+
+# Tobias' hybrid v7 (branch hybrid_v3_tr), run unchanged at this commit
+# (bioreactor_decoding.modeling.external_v7). Change the commit to pick up a new version.
+hybrid_v7:
+  ref: 18810698a46e0a31e890e737562f8ebf186df7cf
