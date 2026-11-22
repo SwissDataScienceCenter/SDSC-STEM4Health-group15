@@ -28,8 +28,9 @@ Baseline: `hybrid_v3` CV 8.05, `hybrid_lite` CV 8.06 (v1.0.0 of both).
 
 ### Diagnostics (out-of-fold predictions of `hybrid_lite` on the dev batches)
 
-- **Where the error is.** If each batch's constant offset (the whole batch running high or
-  low) were known, the CV MAPE would fall from 8.06 to 6.40. Getting under 7% on CV therefore
+- **Where the error is.** The batch offset is the constant part of a batch's error relative
+  to the prediction (e.g. predicted 9% too low on every day), not its day-0 values, which are
+  already inputs. If each batch's offset were known, the CV MAPE would fall from 8.06 to 6.40. Getting under 7% on CV therefore
   means explaining most of these batch offsets from the inputs.
 - **The inputs do not explain them.** The batch offset of VCD correlates 0.02 with the feed-B
   dose deviation and +0.13 with the day-0 values. Raw doses do track raw VCD (batch-level
