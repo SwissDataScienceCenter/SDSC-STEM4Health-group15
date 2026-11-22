@@ -18,6 +18,22 @@ Predictions are those of the models fitted on the dev batches only (`reports/hol
 every batch shown is unseen. Hybrid v7 is not among them: it has no predictions for our
 holdout batches (it was validated with its own folds).
 
+## Hero video (for the end of the talk)
+
+`hero.py` (`make hero-video`): one 42 s shot at 1080p60 →
+`media/videos/hero/1080p60/hero.mp4`, plus `media/images/hero/hero_end_card.png` as a still
+fallback.
+
+1. The hybrid forecasts holdout batch 10 from day 0 and the feed plan (actual vs. predicted).
+2. The panels morph into percent error: the actual curve flattens into the zero line.
+3. The mechanistic and ML error curves join; per-batch MAPEs in the legend.
+4. Batches 17 (harder) and 34 (ML matches the hybrid), all three models at once.
+5. End card: MAPE over all 10 holdout batches, read from `reports/metrics/`.
+
+Batches are typical, not the best: 10 is near the holdout mean. Colours: actual off-white,
+models as in the report (mechanistic orange, ML blue, hybrid aqua); feeds are neutral grey
+here so that colour means "model" only. Error axes span ±30% (beyond: triangles).
+
 ## Percent-error videos
 
 `holdout_errors.py` (`make error-videos`) shows the percent error, 100 × (predicted − actual)

@@ -89,6 +89,14 @@ error-videos:
 	done
 
 
+## Render the hero video (presentation/hero.py) and a still of its end card
+.PHONY: hero-video
+hero-video:
+	.venv/bin/python presentation/export_traces.py
+	cd presentation && ../.venv/bin/manim -qh --media_dir media -o hero hero.py Hero \
+		&& ../.venv/bin/manim -qh -s --media_dir media -o hero_end_card hero.py Hero
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:
