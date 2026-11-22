@@ -104,6 +104,8 @@ stages:
           cache: false
       - reports/figures/hybrid_blend.png:
           cache: false
+      - reports/figures/mechanistic_lite.png:
+          cache: false
       - reports/figures/ml_sensors.png:
           cache: false
       - reports/figures/hybrid_blend_ml.png:

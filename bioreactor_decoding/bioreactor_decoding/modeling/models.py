@@ -169,3 +169,21 @@ class AverageEnsemble(BaseEstimator, RegressorMixin):
         if self.geometric:
             return np.exp(sum(np.log(p) for p in preds) / len(preds))
         return sum(preds[1:], preds[0]) / len(preds)
+
+
+class Stage1Only(BaseEstimator, RegressorMixin):
+    """The mechanistic stage 1 of a fitted HybridV3, without any data-driven correction.
+
+    Fitting the whole hybrid reuses its cached stage-1 fits (same training batches, same
+    settings); stage 2 is fitted but not used.
+    """
+
+    def __init__(self, hybrid=None):
+        self.hybrid = hybrid
+
+    def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
+        self.hybrid_ = clone(self.hybrid).fit(X, Y)
+        return self
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(self.hybrid_.predict_stage1(X), index=X.index, columns=list(TARGETS))

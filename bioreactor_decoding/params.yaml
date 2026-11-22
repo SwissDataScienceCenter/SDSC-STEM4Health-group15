@@ -13,6 +13,7 @@ models:
   - hybrid_v3
   - hybrid_lite
   - hybrid_blend    # average of hybrid_v3 and hybrid_lite (uses both sections below)
+  - mechanistic_lite # hybrid_lite's ODE alone (pure mechanistic, uses the hybrid_lite section)
   - ml_sensors      # ridge + XGBoost with soft sensors, no ODE (uses the xgb section)
   - hybrid_blend_ml # geometric average of hybrid_blend and ml_sensors
 

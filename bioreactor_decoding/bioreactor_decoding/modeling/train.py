@@ -45,6 +45,7 @@ from bioreactor_decoding.modeling.models import (
     MedianFoldChange,
     PerDayNullModel,
     PerTargetRegressor,
+    Stage1Only,
     challenge_score,
 )
 
@@ -102,6 +103,11 @@ def make_hybrid_blend(random_state: int | None = None) -> AverageEnsemble:
     return AverageEnsemble([make_hybrid_v3(random_state), make_hybrid_lite(random_state)])
 
 
+def make_mechanistic_lite(random_state: int | None = None) -> Stage1Only:
+    """Pure mechanistic: hybrid_lite's ODE (latent nutrient, staged fit), no correction."""
+    return Stage1Only(make_hybrid_lite(random_state))
+
+
 def make_ml_sensors(random_state: int | None = None) -> MLSensors:
     """Ridge + XGBoost with volume and bolus soft sensors, no ODE (branch 3_ML_models)."""
     return MLSensors(xgb_params=load_params().get("xgb"), random_state=_seed(random_state))
@@ -124,6 +130,7 @@ MODELS = {
     "hybrid_v3": make_hybrid_v3,
     "hybrid_lite": make_hybrid_lite,
     "hybrid_blend": make_hybrid_blend,
+    "mechanistic_lite": make_mechanistic_lite,
     "ml_sensors": make_ml_sensors,
     "hybrid_blend_ml": make_hybrid_blend_ml,
 }
