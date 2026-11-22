@@ -53,3 +53,8 @@ extend-select = ["I"]  # Add import sorting
 known-first-party = ["bioreactor_decoding"]
 force-sort-within-sections = true
 
+
+[tool.uv]
+# uv-managed CPython: it ships the headers C extensions need (the system Python has none).
+python-preference = "only-managed"
+
