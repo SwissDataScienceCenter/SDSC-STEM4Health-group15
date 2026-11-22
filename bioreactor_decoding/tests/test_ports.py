@@ -1,38 +1,23 @@
 """The ported team work reproduces what is on its branches.
 
 anomaly.py must give the numbers printed in notebooks/anomaly_v7.ipynb on branch
-anomalies_detection, and the Option A stage must read its results from commit option_a.ref.
-Skipped without the raw data, or without the pinned commits (a clone without branch
-hybrid_v3_tr).
+anomalies_detection, and ported Option A the CV and submission committed on branch
+hybrid_v3_tr. Skipped without the raw data or the imported inputs (data/external, DVC).
 """
-
-import subprocess
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from bioreactor_decoding import anomaly
-from bioreactor_decoding.config import PROJ_ROOT, load_params
+from bioreactor_decoding.config import PROJ_ROOT
 from bioreactor_decoding.dataset import RAW_PATH, TARGETS
-from bioreactor_decoding.modeling import external_option_a
+from bioreactor_decoding.modeling import option_a
 from bioreactor_decoding.modeling.train import labelled_data
 
-
-def _has_commit(ref: str) -> bool:
-    return (
-        subprocess.run(["git", "cat-file", "-e", f"{ref}^{{commit}}"], cwd=PROJ_ROOT).returncode
-        == 0
-    )
-
-
-PARAMS = load_params()
 pytestmark = [
     pytest.mark.skipif(not RAW_PATH.exists(), reason="raw data not available"),
-    pytest.mark.skipif(
-        not (_has_commit(PARAMS["hybrid_v7"]["ref"]) and _has_commit(PARAMS["option_a"]["ref"])),
-        reason="pinned team commits not available",
-    ),
+    pytest.mark.skipif(not option_a.INPUTS.exists(), reason="data/external not pulled"),
 ]
 
 
@@ -71,9 +56,18 @@ def test_anomaly_matches_the_original_notebook(result):
     assert result["top3"] == {"Batch23": 3.78, "Batch44": 3.36, "Batch49": 2.61}
 
 
-def test_option_a_leaderboard_is_read_from_its_commit():
-    lb = external_option_a.leaderboard_result(PARAMS["option_a"]["ref"])
-    assert lb == {"vcd": 6.568, "tcd": 6.41, "substrate": 6.546, "byproduct": 7.716, "score": 6.81}
+def test_ported_option_a_reproduces_its_branch(tmp_path, monkeypatch):
+    """CV as committed in outputs/option_a/cv_score.csv, and the submitted file."""
+    monkeypatch.setattr(option_a, "WORK", tmp_path)
+    option_a.run_option_a()
+    cv = pd.read_csv(tmp_path / "cv_score.csv").iloc[0].to_dict()
+    assert cv == {"vcd": 6.902, "tcd": 6.816, "substrate": 7.235, "byproduct": 8.249,
+                  "leaderboard_score": 7.3}  # fmt: skip
+    read = {"dtype": {"batch_id": str}}
+    run = pd.read_csv(tmp_path / "holdout_predictions.csv", **read)
+    submitted = pd.read_csv(option_a.SUBMITTED, **read)
+    assert run["batch_id"].equals(submitted["batch_id"])
+    np.testing.assert_allclose(run[TARGETS], submitted[TARGETS], rtol=1e-12)
 
 
 def test_option_a_holdout_rows_match_the_holdout_split():
@@ -83,10 +77,10 @@ def test_option_a_holdout_rows_match_the_holdout_split():
         t_key=split.loc[hold, "elapsed_time"].to_numpy(),
         **{f"f|{v}": Y.loc[hold, v].to_numpy() for v in TARGETS},
     )
-    out, scores = external_option_a.holdout_from_oof(perfect)
+    out, scores = option_a.holdout_from_oof(perfect)
     assert len(out) == hold.sum() and scores["score"] == pytest.approx(0.0)
     with pytest.raises(ValueError, match="no out-of-fold prediction"):
-        external_option_a.holdout_from_oof(perfect.iloc[1:])
+        option_a.holdout_from_oof(perfect.iloc[1:])
 
 
 def test_option_a_holdout_predictions_have_no_measured_values():

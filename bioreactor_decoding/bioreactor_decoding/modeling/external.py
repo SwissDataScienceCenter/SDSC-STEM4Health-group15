@@ -1,9 +1,8 @@
 """Run team code that lives on another branch, unchanged, at a pinned commit.
 
-Used by the stages that wrap models we did not rewrite (external_v7.py, external_option_a.py).
-Each one gets its own git worktree under external/ (ignored by git and DVC), checked out at the
-commit in params.yaml and reset to its committed state, with the challenge data linked to where
-that code expects it. The commit hash is the provenance: DVC reruns a stage when it changes.
+Used by the stage that wraps hybrid v7 (external_v7.py), which is not ported. It gets its own
+git worktree under external/ (ignored by git and DVC), checked out at the commit in params.yaml
+and reset to its committed state, with the challenge data linked to where that code expects it. The commit hash is the provenance: DVC reruns a stage when it changes.
 """
 
 from pathlib import Path
@@ -34,16 +33,6 @@ def checkout(ref: str, worktree: Path):
     if data.is_symlink() or data.exists():
         data.unlink()
     data.symlink_to(RAW_DATA_DIR, target_is_directory=True)
-
-
-def git_show(ref: str, path: str) -> str:
-    """Content of `path` (relative to the repository root) as committed at `ref`.
-
-    Use this, not the worktree, for files the team committed that a rerun overwrites.
-    """
-    return subprocess.run(
-        ["git", "show", f"{ref}:{path}"], cwd=PROJ_ROOT, check=True, capture_output=True, text=True
-    ).stdout
 
 
 def to_submission(pred: pd.DataFrame) -> pd.DataFrame:

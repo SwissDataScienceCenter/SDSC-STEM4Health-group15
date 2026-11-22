@@ -12,14 +12,13 @@ log(measured / predicted) describe how far a normal batch deviates from its fore
   5. alarm share    share of real alarms when bad batches are rare
   6. test inputs    the 12 test batches have no measurements: their inputs only
 
-The v7 files (members_oof_v7c.csv, blend_weights.csv) are read as committed at hybrid_v7.ref in
-params.yaml, the commit the hybrid_v7 stage runs.
+The v7 files (members_oof_v7c.csv, blend_weights.csv) are read from data/external/hybrid_v3_tr,
+imported from branch hybrid_v3_tr at 863e751 with Option A's inputs (DVC-tracked).
 
     python -m bioreactor_decoding.anomaly
 -> reports/anomaly/*.csv, reports/metrics/anomaly.json, reports/figures/anomaly_v7_*.png
 """
 
-import io
 import json
 from pathlib import Path
 
@@ -29,26 +28,25 @@ import numpy as np
 import pandas as pd
 import typer
 
-from bioreactor_decoding.config import FIGURES_DIR, METRICS_DIR, REPORTS_DIR, load_params
+from bioreactor_decoding.config import EXTERNAL_DATA_DIR, FIGURES_DIR, METRICS_DIR, REPORTS_DIR
 from bioreactor_decoding.dataset import RAW_PATH, TARGETS, TEMPLATE_PATH
-from bioreactor_decoding.modeling.external import git_show
 
 app = typer.Typer()
 ANOMALY_DIR = REPORTS_DIR / "anomaly"
 T = TARGETS
 MEM = ["pf3a", "a3i_fp", "states", "tp"]  # the four members of hybrid v7
-V7_MEMBERS = "outputs/stack_v5/cv/members_oof_v7c.csv"
-V7_WEIGHTS = "outputs/hybrid_v7/blend_weights.csv"
+V7_DIR = EXTERNAL_DATA_DIR / "hybrid_v3_tr" / "outputs"
+V7_MEMBERS = V7_DIR / "stack_v5" / "cv" / "members_oof_v7c.csv"
+V7_WEIGHTS = V7_DIR / "hybrid_v7" / "blend_weights.csv"
 
 
 # --- 1. residuals of the normal-behaviour model -------------------------------------------
 
 
-def load_v7(ref: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """v7 members' out-of-fold predictions and blend weights, as committed at `ref`."""
-    ref = ref or str(load_params()["hybrid_v7"]["ref"])
-    m = pd.read_csv(io.StringIO(git_show(ref, V7_MEMBERS)), dtype={"batch_id": str})
-    W = pd.read_csv(io.StringIO(git_show(ref, V7_WEIGHTS)), index_col=[0, 1])
+def load_v7() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """v7 members' out-of-fold predictions and blend weights (branch hybrid_v3_tr, 863e751)."""
+    m = pd.read_csv(V7_MEMBERS, dtype={"batch_id": str})
+    W = pd.read_csv(V7_WEIGHTS, index_col=[0, 1])
     return m, W
 
 
@@ -404,9 +402,9 @@ def detection_figure(tab):
 # --- the whole analysis ---------------------------------------------------------------------
 
 
-def run(ref: str | None = None) -> dict:
+def run() -> dict:
     """Every result of the analysis, in the notebook's order."""
-    m, W = load_v7(ref)
+    m, W = load_v7()
     P = blend(m, W)
     ids, Obs, Pred, R, RV = residuals(m, P)
     batch, THR = batch_scores(R, ids)

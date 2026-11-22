@@ -69,9 +69,3 @@ hybrid_lite:
 # (bioreactor_decoding.modeling.external_v7). Change the commit to pick up a new version.
 hybrid_v7:
   ref: 18810698a46e0a31e890e737562f8ebf186df7cf
-
-# Option A, the team's final model (branch hybrid_v3_tr): a simplified v7, run unchanged at
-# this commit (bioreactor_decoding.modeling.external_option_a). It only adds files to the v7
-# commit above, so both run the same scripts and cached core outputs.
-option_a:
-  ref: 863e751fe96f4b4350fbd4f12fc2527f68c36318

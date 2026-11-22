@@ -5,5 +5,5 @@
 # Not part of the pipeline; skipping them keeps dvc status fast
 .venv/
 models/cache/
-external/
+/external/
 presentation/media/

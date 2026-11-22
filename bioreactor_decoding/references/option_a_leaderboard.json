@@ -1,0 +1,10 @@
+{
+  "source": "Leaderboard response to outputs/option_a/leaderboard_submission.csv, printed in notebooks/Leaderboard_template.ipynb on branch hybrid_v3_tr at 863e751",
+  "leaderboard_mape": {
+    "vcd": 6.568,
+    "tcd": 6.41,
+    "substrate": 6.546,
+    "byproduct": 7.716,
+    "score": 6.81
+  }
+}

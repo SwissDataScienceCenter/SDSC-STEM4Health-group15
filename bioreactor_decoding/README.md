@@ -35,7 +35,7 @@ gto describe bioreactor_decoding/dvc.yaml:hybrid_v7 # commit, path, description
 
 | Model | Latest | What it is |
 |---|---|---|
-| **`option_a`** | v1.0.0, stage **`prod`** | **The final model**: one sensor-assimilated Monod core with two learned views (leaderboard 6.81); run from a pinned commit, reproduces its submission exactly |
+| **`option_a`** | v1.0.0, stage **`prod`** | **The final model**: one sensor-assimilated Monod core with two learned views (leaderboard 6.81); ported from branch `hybrid_v3_tr`, reproduces its submission exactly |
 | `hybrid_v7` | v1.0.0 | Team's best leaderboard score (6.752 MAPE), 4-core stack; run from a pinned commit, the registered file is the submitted one |
 | `hybrid_blend` | v1.0.0 | Average of `hybrid_v3` and `hybrid_lite`; best in-house protocol (CV 7.95, holdout 6.99) |
 | `hybrid_v3`, `hybrid_lite` | v1.1.0 | Mechanistic ODE + learned correction, full and light stage 1 |
@@ -57,6 +57,7 @@ Scores of all models, registered or not (`ml_sensors`, `mechanistic_lite`, `hybr
 ├── uv.lock            <- exact dependency versions
 ├── data
 │   ├── raw            <- challenge data (not in git; versioned by DVC via data/raw.dvc)
+│   ├── external       <- Option A's cached core and member outputs from hybrid_v3_tr (DVC)
 │   └── processed      <- submission_<model>.csv (pipeline output)
 ├── docs               <- intro.md (problem, data, validation), mlops.md (pipeline, models)
 ├── models             <- <model>_dev.pkl / <model>_all.pkl, cache/ (not in git)
@@ -80,9 +81,10 @@ Scores of all models, registered or not (`ml_sensors`, `mechanistic_lite`, `hybr
         ├── mechanistic.py  <- Sartorius-style ODE (numba) and its fitting
         ├── hybrid.py       <- hybrid ODE: neural nets correcting growth and lactate rates
         ├── hybrid_v3.py    <- hybrid v3: soft sensors, two branches, blend (one estimator)
-        ├── external.py     <- runs team code from another branch at a pinned commit
+        ├── external.py     <- runs hybrid v7's code from its branch at a pinned commit
         ├── external_v7.py  <- runs Tobias' hybrid v7 at a pinned commit (DVC stage hybrid_v7)
-        ├── external_option_a.py <- runs Option A, the final model (DVC stage option_a)
+        ├── option_a.py     <- Option A, the final model (DVC stage option_a)
+        ├── option_a_src/   <- Option A's code, ported unchanged from branch hybrid_v3_tr
         ├── ml_sensors.py   <- ridge + XGBoost with soft sensors (ml_sensors)
         ├── lite.py         <- light stage 1 for hybrid_lite: mechanistic ODE, staged fit
         ├── train.py        <- CV on the dev folds and final fits, per model

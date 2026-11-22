@@ -488,7 +488,7 @@ md(pd.DataFrame(rows_, columns=["", *[VAR[v] for v in TARGETS], "Mean"]), index=
 Option A is `{python} f"{oa['leaderboard_mape']['score'] - v7['leaderboard_mape']['score']:.2f}"`
 worse than v7 on the leaderboard and
 `{python} f"{oa['cv7_mape']['score'] - v7['cv7_mape']['score']:.2f}"` worse in CV, with one
-core instead of four. Rerunning its pinned commit reproduces the submitted file exactly
+core instead of four. Its code, ported to this repository, reproduces the submitted file exactly
 (largest difference `{python} f"{oa['rerun_vs_submitted_pct']['max']:.0e}"`%), where v7's
 rerun differs by up to 20%. It was chosen by the team for this simplicity, not by our
 per-fold rule: it has no CV on our 5 dev folds.
@@ -561,8 +561,8 @@ range of the labelled batches.
   data, the frozen split, the code and `params.yaml`. DVC reruns only what changed.
 * **Versioned models.** Model versions are git tags in a registry (GTO), not "_v2" file
   names. Each tag points at the commit whose code, parameters and lock file produced it.
-  Option A, the final model, is registered in stage `prod`. It and hybrid v7 run unchanged
-  from pinned commits of their own branch.
+  Option A, the final model, is registered in stage `prod`; its code is ported unchanged
+  from its branch. Hybrid v7 runs from a pinned commit of its own branch.
 * **Logged decisions.** Every experiment, including the rejected ones, is recorded with its
   per-fold result in `docs/experiments.md`.
 * **No data in git.** Only hashes of the challenge data, and no file in `reports/` contains

@@ -13,15 +13,18 @@ flowchart LR
     train["train@model<br/>CV on dev folds,<br/>fit on dev and on all"] --> evaluate["evaluate@model<br/>holdout MAPE<br/>(dev model, no refit)"]
     train --> submission["submission@model<br/>data/processed/<br/>submission_model.csv"]
     evaluate --> figures["figures<br/>reports/figures/*.png"]
-    raw --> option_a["option_a<br/>final model, run at<br/>a pinned commit"]
+    raw --> option_a["option_a<br/>final model<br/>(ported)"]
+    ext[(data/external<br/>versioned by DVC)] --> option_a
+    ext --> anomaly
     option_a --> figures
     raw --> v7["hybrid_v7<br/>pinned commit"]
     raw --> anomaly["anomaly<br/>on v7's residuals"]
 ```
 
-The team models that live on another branch (`hybrid_v7`, `option_a`) are not rewritten: each
+Option A, the final model, is ported from branch `hybrid_v3_tr`: its code is in
+`modeling/option_a_src/`, its cached inputs in `data/external/`. Hybrid v7 is not ported: its
 stage runs the team's code unchanged from a git worktree at the commit in `params.yaml`
-(`modeling/external.py`).
+(`modeling/external.py`), so it needs that branch.
 
 ## Commands
 
@@ -89,6 +92,7 @@ hybrids. Results, including the rejected ideas, go in [the experiment log](exper
 |---|---|---|
 | Code, `params.yaml`, `dvc.yaml`, `dvc.lock`, `uv.lock` | repository | yes |
 | Raw challenge data | `data/raw/` | no; only its hash, in `data/raw.dvc` |
+| Option A's cached core and member outputs (from `hybrid_v3_tr`) | `data/external/` | no; only its hash, in `data/external.dvc` |
 | Fitted models | `models/<model>_{dev,all}.pkl` | no; rebuilt by `make pipeline` |
 | Stage-1 fit cache of hybrid v3 | `models/cache/` | no |
 | CV scores per fold | `reports/cv/<model>.csv` | yes |
@@ -119,7 +123,7 @@ if the hackathon's data rules allow it.
 
 | Name | What it is | Code |
 |---|---|---|
-| **`option_a`** | **The final model** (GTO stage `prod`): one sensor-assimilated Monod core, two learned views, blended (leaderboard 6.81; run from a pinned commit) | `modeling/external_option_a.py` |
+| **`option_a`** | **The final model** (GTO stage `prod`): one sensor-assimilated Monod core, two learned views, blended (leaderboard 6.81; ported from `hybrid_v3_tr`) | `modeling/option_a.py`, `modeling/option_a_src/` |
 | `null_constant` | Mean of each variable over all times and batches | `modeling/models.py` |
 | `null_per_day` | Mean of each variable per culture day (the "recipe" curve) | `modeling/models.py` |
 | `xgb_raw` | XGBoost on raw features and raw targets | `modeling/train.py` |
@@ -197,7 +201,7 @@ a minute; the cores' outputs are committed on his branch) and collects the submi
   the submitted file was written from cached core outputs that changed before the commit.
   The registered artifact is the submitted file.
 
-### Option A, the final model (external, pinned commit)
+### Option A, the final model (ported)
 
 Option A (branch `hybrid_v3_tr`, commit `863e751`, `src/option_a.py`) is v7 cut down to what
 the report argues for: **one mechanistic core with sensor assimilation plus learned
@@ -220,22 +224,34 @@ four, whose submission reproduces exactly. The team adopted it as the final mode
 stage `prod`). It was not judged by our per-fold rule, since it has no CV on our 5 dev folds
 (see `docs/experiments.md`).
 
-`dvc repro option_a` runs `src/option_a.py` unchanged at `option_a.ref`, in its own worktree
-(`external/option_a_tr`; about 30 s). The commit only adds files to the v7 commit, so the two
-run the same scripts and cached core outputs. `reports/metrics/option_a.json` records:
+**The port.** `modeling/option_a_src/` holds `src/option_a.py` and the six modules it imports
+(`hybrid_v3`, `experiments_v4b`, `experiments_v5`, `experiments_v5_ideas`, `experiments_v6`,
+`stack_v5`), as committed at `863e751`. The only change is two path constants in
+`hybrid_v3.py`, so that the code reads this project's data. The folder is excluded from ruff
+to keep it as on the branch. Option A also reads cached outputs of earlier scripts on that
+branch: the sensor-assimilated core (`core_assim`), its cached parts and the out-of-fold
+predictions of the two members (`stack_v5/cv/members_oof_v7c.csv`), built by a chain of
+experiment scripts. They are imported as committed at `863e751` into
+`data/external/hybrid_v3_tr/outputs/`, which DVC tracks (`data/external.dvc`; not in git,
+since they contain measured values), together with the submitted file. Regenerating them from
+the raw data would mean porting that chain as well (core_assim, core_monod, sartorius_model
+and the v5-v7 experiment scripts).
+
+`dvc repro option_a` (`modeling/option_a.py`, about 30 s) runs `option_a.main()` on these
+inputs and writes the submission `data/processed/submission_option_a.csv`, the registered
+artifact. It matches the submitted file to 2e-12 %, and every output matches a run of the
+original commit byte for byte. `reports/metrics/option_a.json` records:
 
 - `cv7_mape`: his 7-fold CV, rerun (identical to the committed `cv_score.csv`);
-- `leaderboard_mape`: the leaderboard's answer to the submission, read from the printed output
-  of `notebooks/Leaderboard_template.ipynb` at the commit (there is no results file);
+- `leaderboard_mape`: the leaderboard's answer to the submission, as printed by
+  `notebooks/Leaderboard_template.ipynb` on the branch (there is no results file), recorded in
+  `references/option_a_leaderboard.json`;
 - `holdout_mape_oof7`: MAPE on our 10 holdout batches of its **out-of-fold** predictions
   (`reports/holdout/option_a.csv`). Each holdout batch was predicted by a model that never saw
   it, but that model was fitted on about 42 of the 49 labelled batches, holdout batches
   included, and the choices behind Option A were made on those folds. So it is comparable in
   spirit, not in protocol, with `holdout_mape` of our models (fitted on the 39 dev batches);
-- `rerun_vs_submitted_pct`: how far the rerun is from the committed submission.
-
-The registered artifact is the submitted file. It is read from git, because the rerun
-overwrites it in the worktree.
+- `rerun_vs_submitted_pct`: how far this run is from the submitted file.
 
 ## Anomaly detection
 
@@ -245,7 +261,7 @@ batches for abnormal behaviour, using only normal batches: hybrid v7's out-of-fo
 log(measured / predicted), define normal. It reports a batch score (robust z and PCA T²/SPE,
 each batch against the other 48), cell-level rules for spikes and persistent deviations
 (standard and strict level), detection rates on injected faults, and an input-only check of
-the 12 test batches. The v7 files it needs are read as committed at `hybrid_v7.ref`. Results:
+the 12 test batches. The v7 files it needs are among the imported inputs in `data/external/`. Results:
 `reports/anomaly/`, `reports/metrics/anomaly.json`, `reports/figures/anomaly_v7_*.png`.
 
 ## Resource footprint

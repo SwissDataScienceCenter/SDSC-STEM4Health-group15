@@ -2285,7 +2285,7 @@ vertical-align: -.125em;
 <section id="baselines-how-good-is-the-average-run" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Baselines: how good is “the average run”?</h1>
 <div class="cell" data-tbl-colwidths="[20,32,9,9,11,11,8]" data-execution_count="2">
-<div id="tbl-baselines" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="2" data-tbl-colwidths="[20,32,9,9,11,11,8]">
+<div id="tbl-baselines" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[20,32,9,9,11,11,8]" data-execution_count="2">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-baselines-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 1: Baselines (CV MAPE, %).
@@ -2345,7 +2345,7 @@ Table 1: Baselines (CV MAPE, %).
 <h1 data-number="4"><span class="header-section-number">4</span> The mechanistic approach</h1>
 <p><strong>Idea.</strong> Write down the biology as ordinary differential equations: Monod-type growth on the substrate, a death rate, substrate uptake, byproduct production and consumption, and the dilution caused by each feed. Fit the kinetic parameters on the training batches, then simulate each new batch forward from its day-0 state and its own feed schedule.</p>
 <div class="cell" data-tbl-colwidths="[20,32,9,9,11,11,8]" data-execution_count="3">
-<div id="tbl-mech" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="3" data-tbl-colwidths="[20,32,9,9,11,11,8]">
+<div id="tbl-mech" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[20,32,9,9,11,11,8]" data-execution_count="3">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-mech-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 2: Pure mechanistic model vs. the per-day mean (CV MAPE, %).
@@ -2412,7 +2412,7 @@ Table 2: Pure mechanistic model vs. the per-day mean (CV MAPE, %).
 <h1 data-number="5"><span class="header-section-number">5</span> The machine-learning approach</h1>
 <p><strong>Idea.</strong> Treat each sample as a row of features (day, day-0 values, feeds so far, the feed dosed right after the sample) and learn the targets directly, with gradient boosting and ridge regression.</p>
 <div class="cell" data-tbl-colwidths="[20,32,9,9,11,11,8]" data-execution_count="4">
-<div id="tbl-ml" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="4" data-tbl-colwidths="[20,32,9,9,11,11,8]">
+<div id="tbl-ml" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[20,32,9,9,11,11,8]" data-execution_count="4">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-ml-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 3: The machine-learning ladder (CV MAPE, %).
@@ -2519,7 +2519,7 @@ Figure 1: Per-variable CV MAPE of the three approaches. The hybrid inherits the
 </div>
 <p><strong>Why the combination works.</strong> The two families fail in different ways. The ODE’s errors are <em>systematic</em>: a whole batch running high or low, a byproduct switch at the wrong time. These are smooth, low-dimensional, and learnable from a few batch-level signals. Learning the correction is a much easier task than learning the whole trajectory. The data-driven stage never has to discover that cells grow, that feeds dilute, or that substrate is consumed: the ODE provides that for free. It only has to learn <em>how this batch differs</em>. That is why it works with 49 batches.</p>
 <div class="cell" data-tbl-colwidths="[19,27,8,8,11,11,8,8]" data-execution_count="6">
-<div id="tbl-hybrid" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="6" data-tbl-colwidths="[19,27,8,8,11,11,8,8]">
+<div id="tbl-hybrid" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[19,27,8,8,11,11,8,8]" data-execution_count="6">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-hybrid-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 4: Hybrid models (CV and holdout MAPE, %).
@@ -2615,7 +2615,7 @@ Table 4: Hybrid models (CV and holdout MAPE, %).
 <li>A <strong>two-population core</strong>: growing cells switch to a non-growing, byproduct-consuming state.</li>
 </ol>
 <div class="cell" data-tbl-colwidths="[10,50,20,20]" data-execution_count="7">
-<div id="tbl-v7" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="7" data-tbl-colwidths="[10,50,20,20]">
+<div id="tbl-v7" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[10,50,20,20]" data-execution_count="7">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-v7-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 5: Version history of the team’s hybrid (Tobias’ 7-fold CV over all 49 labelled batches; not comparable with our 5-fold CV).
@@ -2676,7 +2676,7 @@ Table 5: Version history of the team’s hybrid (Tobias’ 7-fold CV over all 4
 </div>
 </div>
 <div class="cell" data-tbl-colwidths="[13,13,19,19,18,18]" data-execution_count="8">
-<div id="tbl-v7-weights" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="8" data-tbl-colwidths="[13,13,19,19,18,18]">
+<div id="tbl-v7-weights" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[13,13,19,19,18,18]" data-execution_count="8">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-v7-weights-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 6: Hybrid v7 blend weights per variable and phase of the run. Each variable relies on different cores, and the weights shift between the growth phase (days 1-6) and the late phase (days 7-13).
@@ -2799,7 +2799,7 @@ Figure 2: CV MAPE of every model in the pipeline, coloured by approach (5 dev f
 <p>The last improvements on the leaderboard came largely from <strong>combining models</strong>: averaging hybrids, blending four cores with fitted weights, adding finishing models on top. It worked: 7.137 → 6.752 on the leaderboard. But it is worth being honest about what this practice costs.</p>
 <p><strong>Footprint.</strong> Every layer multiplies the cost of training and serving:</p>
 <div class="cell" data-tbl-colwidths="[20,50,15,15]" data-execution_count="10">
-<div id="tbl-footprint" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="10" data-tbl-colwidths="[20,50,15,15]">
+<div id="tbl-footprint" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[20,50,15,15]" data-execution_count="10">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-footprint-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 7: Size of the fitted models (all 49 batches). Fit times are not shown: the hybrids’ stage-1 fits are cached, so the recorded times understate an uncached fit.
@@ -2878,7 +2878,7 @@ Table 7: Size of the fitted models (all 49 batches). Fit times are not shown: t
 <h1 data-number="10"><span class="header-section-number">10</span> Option A: the final model</h1>
 <p>Option A is v7 cut down to that recipe. It keeps v7’s <strong>sensor-assimilated Monod core</strong> and puts two learned views on it: the hybrid v3 correction and the functional-PCA trajectory model. Their predictions are blended geometrically, with weights per variable and per phase fitted on out-of-fold predictions. The finishing steps are v7’s: glucose goes to the most likely point inside the interval implied by the bolus controller, and TCD ≥ VCD. Three of v7’s four cores and its TCD ratio model are gone.</p>
 <div class="cell" data-tbl-colwidths="[34,11,11,12,12,10,10]" data-execution_count="11">
-<div id="tbl-option-a" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="11" data-tbl-colwidths="[34,11,11,12,12,10,10]">
+<div id="tbl-option-a" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[34,11,11,12,12,10,10]" data-execution_count="11">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-option-a-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 8: Option A and hybrid v7 (MAPE, %). The 7-fold CV and the leaderboard are Tobias’ protocol. The holdout row is Option A’s out-of-fold prediction of our 10 holdout batches; it is not the same protocol as our holdout check (see text).
@@ -2952,9 +2952,9 @@ Table 8: Option A and hybrid v7 (MAPE, %). The 7-fold CV and the leaderboard ar
 </figure>
 </div>
 </div>
-<p>Option A is 0.06 worse than v7 on the leaderboard and 0.11 worse in CV, with one core instead of four. Rerunning its pinned commit reproduces the submitted file exactly (largest difference 2e-12%), where v7’s rerun differs by up to 20%. It was chosen by the team for this simplicity, not by our per-fold rule: it has no CV on our 5 dev folds.</p>
+<p>Option A is 0.06 worse than v7 on the leaderboard and 0.11 worse in CV, with one core instead of four. Its code, ported to this repository, reproduces the submitted file exactly (largest difference 2e-12%), where v7’s rerun differs by up to 20%. It was chosen by the team for this simplicity, not by our per-fold rule: it has no CV on our 5 dev folds.</p>
 <div class="cell" data-tbl-colwidths="[20,20,30,30]" data-execution_count="12">
-<div id="tbl-option-a-weights" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="12" data-tbl-colwidths="[20,20,30,30]">
+<div id="tbl-option-a-weights" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[20,20,30,30]" data-execution_count="12">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-option-a-weights-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 9: Option A blend weights per variable and phase of the run.
@@ -3044,7 +3044,7 @@ Table 9: Option A blend weights per variable and phase of the run.
 <h1 data-number="11"><span class="header-section-number">11</span> Screening for abnormal batches</h1>
 <p>A forecast model also defines what <em>normal</em> looks like. Triantafyllia’s anomaly analysis (<code>notebooks/anomaly_v7.ipynb</code>) uses hybrid v7’s out-of-fold residuals, log(measured / predicted), of the 49 labelled batches as the normal behaviour, without any rejected batch or label. Each batch is compared with the other 48. A <strong>batch score</strong> (robust z-values and a PCA of the residual patterns) catches diffuse deviations, and <strong>cell-level rules</strong> catch one-day spikes and deviations that persist for three days or more.</p>
 <div class="cell" data-tbl-colwidths="[12,14,14,10,10,20,20]" data-execution_count="13">
-<div id="tbl-anomaly" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="13" data-tbl-colwidths="[12,14,14,10,10,20,20]">
+<div id="tbl-anomaly" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[12,14,14,10,10,20,20]" data-execution_count="13">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-anomaly-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 10: Deviations flagged in the labelled batches at the standard level (z-values against the other 48 batches).
@@ -3144,7 +3144,7 @@ Table 10: Deviations flagged in the labelled batches at the standard level (z-v
 <h1 data-number="12"><span class="header-section-number">12</span> Reproducibility</h1>
 <ul>
 <li><strong>One pipeline.</strong> <code>dvc repro</code> rebuilds every number and figure in this report from the raw data, the frozen split, the code and <code>params.yaml</code>. DVC reruns only what changed.</li>
-<li><strong>Versioned models.</strong> Model versions are git tags in a registry (GTO), not “_v2” file names. Each tag points at the commit whose code, parameters and lock file produced it. Option A, the final model, is registered in stage <code>prod</code>. It and hybrid v7 run unchanged from pinned commits of their own branch.</li>
+<li><strong>Versioned models.</strong> Model versions are git tags in a registry (GTO), not “_v2” file names. Each tag points at the commit whose code, parameters and lock file produced it. Option A, the final model, is registered in stage <code>prod</code>; its code is ported unchanged from its branch. Hybrid v7 runs from a pinned commit of its own branch.</li>
 <li><strong>Logged decisions.</strong> Every experiment, including the rejected ones, is recorded with its per-fold result in <code>docs/experiments.md</code>.</li>
 <li><strong>No data in git.</strong> Only hashes of the challenge data, and no file in <code>reports/</code> contains measured values.</li>
 </ul>

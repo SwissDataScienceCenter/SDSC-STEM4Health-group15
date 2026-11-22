@@ -83,20 +83,20 @@ stages:
       - reports/metrics/hybrid_v7.json:
           cache: false
 
-  # The final model: Option A, run unchanged at option_a.ref (see external_option_a.py).
+  # The final model: Option A, ported from branch hybrid_v3_tr (modeling/option_a_src/), on the
+  # raw data and the cached core and member outputs imported into data/external.
   # Its holdout predictions are out-of-fold from its own 7-fold CV (holdout_mape_oof7).
   option_a:
-    cmd: python -m bioreactor_decoding.modeling.external_option_a
-    params:
-      - option_a
+    cmd: python -m bioreactor_decoding.modeling.option_a
     deps:
       - data/raw
+      - data/external/hybrid_v3_tr
       - references/splits.csv
-      - bioreactor_decoding/modeling/external.py
-      - bioreactor_decoding/modeling/external_option_a.py
+      - references/option_a_leaderboard.json
+      - bioreactor_decoding/modeling/option_a.py
+      - bioreactor_decoding/modeling/option_a_src
     outs:
       - data/processed/submission_option_a.csv
-      - data/processed/submission_option_a_submitted.csv
       - reports/holdout/option_a.csv:
           cache: false
       - reports/option_a/blend_weights.csv:
@@ -108,12 +108,10 @@ stages:
   # Anomaly detection on hybrid v7's out-of-fold residuals (notebooks/anomaly_v7.ipynb).
   anomaly:
     cmd: python -m bioreactor_decoding.anomaly
-    params:
-      - hybrid_v7
     deps:
       - data/raw
+      - data/external/hybrid_v3_tr
       - bioreactor_decoding/anomaly.py
-      - bioreactor_decoding/modeling/external.py
     outs:
       - reports/anomaly:
           cache: false
@@ -166,10 +164,10 @@ stages:
 # The final model is option_a, in stage prod:  gto assign <artifact> --version v1.0.0 --stage prod
 artifacts:
   option_a:
-    path: data/processed/submission_option_a_submitted.csv
+    path: data/processed/submission_option_a.csv
     type: model
-    desc: "Final model. One sensor-assimilated Monod core with two learned views (hybrid v3 recipe, fPCA), blended per variable and phase (leaderboard 6.81), run from a pinned commit"
-    labels: [hybrid, mechanistic, team-model, external, final]
+    desc: "Final model. One sensor-assimilated Monod core with two learned views (hybrid v3 recipe, fPCA), blended per variable and phase (leaderboard 6.81); ported from branch hybrid_v3_tr"
+    labels: [hybrid, mechanistic, team-model, final]
   hybrid_v7:
     path: data/processed/submission_hybrid_v7_submitted.csv
     type: model
