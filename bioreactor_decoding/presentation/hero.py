@@ -11,9 +11,11 @@ One continuous shot, built for a projector:
   4. Batches 17 and 34 in error view, all three models at once. In 34, ML matches the hybrid.
   5. End card: MAPE over all 10 holdout batches (from reports/metrics).
 
-Batches: 10 (typical: hybrid 6.4, near the holdout mean of 7.0), 17 (harder) and 34 (ML as
-good as the hybrid), not the best ones. Colours: the models as in the report (validated on
-this surface); feeds are neutral here so that colour means "model" only.
+Batches: 10 (typical: hybrid 6.6, the holdout mean), 17 (harder) and 34 (ML as good as the
+hybrid), not the best ones. The hybrid is Option A, the final model; its predictions are its
+out-of-fold ones (7-fold CV), so its end-card MAPE is holdout_mape_oof7. Colours: the models
+as in the report (validated on this surface); feeds are neutral here so that colour means
+"model" only.
 """
 
 import json
@@ -53,11 +55,17 @@ TRUTH = "#f0efec"
 MODELS = {  # name, colour (report colours; all pairs pass the CVD and contrast checks)
     "mechanistic_lite": ("Mechanistic", "#d95926"),
     "ml_sensors": ("Machine learning", "#3987e5"),
-    "hybrid_blend": ("Hybrid", "#199e70"),
+    "option_a": ("Hybrid (Option A)", "#199e70"),  # the final model
 }
-HYBRID = "hybrid_blend"
+HYBRID = "option_a"
 FEED_TICK = "#8f8e88"
 GROW, FLASH_DAYS = 5.0, 1.0
+
+
+def holdout_score(model):
+    """Holdout MAPE from reports/metrics; option_a's is out-of-fold (holdout_mape_oof7)."""
+    m = json.loads((METRICS / f"{model}.json").read_text())
+    return (m.get("holdout_mape") or m["holdout_mape_oof7"])["score"]
 
 
 def load(model):
@@ -329,8 +337,7 @@ class Hero(Scene):
             self.play(FadeOut(moving), FadeOut(legend), run_time=0.5)
 
         # --- 5. end card --------------------------------------------------------------------
-        scores = {m: json.loads((METRICS / f"{m}.json").read_text())["holdout_mape"]["score"]
-                  for m in MODELS}  # fmt: skip
+        scores = {m: holdout_score(m) for m in MODELS}
         self.play(*[FadeOut(mob) for mob in self.mobjects], run_time=0.6)
         head = txt("All 10 holdout batches", 34, TEXT).move_to(UP * 2.0)
         rows_ = VGroup()
@@ -340,8 +347,11 @@ class Hero(Scene):
             bar = Line([-2.0, y, 0], [-2.0 + bar_len, y, 0], color=color, stroke_width=28)
             value = txt(f"{scores[m]:.1f}%", 28, TEXT).next_to(bar, RIGHT, buff=0.25)
             rows_.add(VGroup(name_t, bar, value))
-        foot = txt("Mean absolute percent error (MAPE), lower is better", 22, TEXT_2)
-        foot.move_to(DOWN * 1.9)
+        foot = VGroup(
+            txt("Mean absolute percent error (MAPE), lower is better", 22, TEXT_2),
+            txt("Option A: out-of-fold predictions of its own 7-fold CV", 18, TEXT_2),
+        ).arrange(DOWN, buff=0.15)
+        foot.move_to(DOWN * 2.05)
         self.play(FadeIn(head), run_time=0.5)
         for r in rows_:
             self.play(FadeIn(r[0]), Create(r[1]), FadeIn(r[2]), run_time=0.7)

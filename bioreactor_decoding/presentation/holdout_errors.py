@@ -2,7 +2,7 @@
 
     STAGE=1 manim -qh presentation/holdout_errors.py ErrorTraces   # mechanistic evolving
     STAGE=2 ...   mechanistic static, ML evolving
-    STAGE=3 ...   mechanistic and ML static, hybrid evolving
+    STAGE=3 ...   mechanistic and ML static, hybrid (Option A, the final model) evolving
 (or `make error-videos`). Reads presentation/data/ (export_traces.py).
 
 Same layout as holdout_traces.py, but each panel shows the percent error
@@ -57,7 +57,7 @@ YLIM = 20.0
 MODELS = [
     ("mechanistic_lite", "Mechanistic", "#d95926"),
     ("ml_sensors", "Machine learning", "#3987e5"),
-    ("hybrid_blend", "Hybrid", "#f0efec"),
+    ("option_a", "Hybrid (Option A)", "#f0efec"),
 ]
 TITLES = {
     1: "Pure mechanistic model: percent error",

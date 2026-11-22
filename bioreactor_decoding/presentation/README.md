@@ -12,11 +12,16 @@ since the log has a row only when a dose was given (no zero amounts, so no thres
 |---|---|---|
 | `mechanistic_lite.mp4` | `mechanistic_lite` | Pure mechanistic: the ODE alone |
 | `ml_sensors.mp4` | `ml_sensors` | Pure ML: ridge + XGBoost with soft sensors |
-| `hybrid_blend.mp4` | `hybrid_blend` | Hybrid: ODE + data-driven correction |
+| `option_a.mp4` | `option_a` | Hybrid, the final model (Option A): one sensor-assimilated ODE core + learned corrections |
 
-Predictions are those of the models fitted on the dev batches only (`reports/holdout/`), so
-every batch shown is unseen. Hybrid v7 is not among them: it has no predictions for our
-holdout batches (it was validated with its own folds).
+Predictions are those in `reports/holdout/`, so every batch shown is unseen by the model that
+predicted it. For the mechanistic and ML models that is the model fitted on the dev batches
+only. Option A has no such model: it was validated with its own 7 folds over all 49 labelled
+batches, and its videos show its out-of-fold predictions, each from a model fitted on about 42
+batches that never saw that batch. Its MAPE is therefore close to, but not the same protocol
+as, the other two (`docs/mlops.md`, "Option A"). The earlier hybrid video,
+`hybrid_blend.mp4`, is no longer rendered; `hybrid_blend` traces are still exported for the
+slides.
 
 ## Hero video (for the end of the talk)
 
@@ -24,13 +29,14 @@ holdout batches (it was validated with its own folds).
 `media/videos/hero/1080p60/hero.mp4`, plus `media/images/hero/hero_end_card.png` as a still
 fallback.
 
-1. The hybrid forecasts holdout batch 10 from day 0 and the feed plan (actual vs. predicted).
+1. The hybrid (Option A, the final model) forecasts holdout batch 10 from day 0 and the feed plan (actual vs. predicted).
 2. The panels morph into percent error: the actual curve flattens into the zero line.
 3. The mechanistic and ML error curves join; per-batch MAPEs in the legend.
 4. Batches 17 (harder) and 34 (ML matches the hybrid), all three models at once.
-5. End card: MAPE over all 10 holdout batches, read from `reports/metrics/`.
+5. End card: MAPE over all 10 holdout batches, read from `reports/metrics/` (Option A's is
+   its out-of-fold MAPE, `holdout_mape_oof7`, noted on the card).
 
-Batches are typical, not the best: 10 is near the holdout mean. Colours: actual off-white,
+Batches are typical, not the best: Option A's MAPE on 10 equals its holdout mean (6.6). Colours: actual off-white,
 models as in the report (mechanistic orange, ML blue, hybrid aqua); feeds are neutral grey
 here so that colour means "model" only. Error axes span ±30% (beyond: triangles).
 
@@ -44,7 +50,7 @@ beyond are drawn at the edge with ▲/▼). One approach is added per video:
 |---|---|---|
 | `errors_1.mp4` | – | mechanistic |
 | `errors_2.mp4` | mechanistic | machine learning |
-| `errors_3.mp4` | mechanistic, machine learning | hybrid |
+| `errors_3.mp4` | mechanistic, machine learning | hybrid (Option A) |
 
 Colours follow the model: mechanistic orange, ML blue, hybrid off-white (aqua is feed B).
 The legend shows each model's MAPE for the batch; the feeds strip is the same as above.

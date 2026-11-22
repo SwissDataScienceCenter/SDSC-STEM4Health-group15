@@ -4,7 +4,9 @@
 -> presentation/data/<model>.csv: batch_id, t, <target>_actual, <target>_pred, one row per
    sample of the 10 holdout batches, day 0 included (the given starting values).
 
-Predictions come from reports/holdout/<model>.csv (the model fitted on the dev batches only).
+Predictions come from reports/holdout/<model>.csv: the model fitted on the dev batches only,
+or, for option_a (the final model), its out-of-fold predictions from its own 7-fold CV (each
+batch predicted by a model that never saw it). hybrid_blend is exported for the slides.
 The files contain measured values, so presentation/data/ is not in git.
 """
 
@@ -15,7 +17,7 @@ import pandas as pd
 from bioreactor_decoding.dataset import TARGETS, load_tables
 from bioreactor_decoding.plots import load_holdout
 
-MODELS = ["mechanistic_lite", "ml_sensors", "hybrid_blend"]
+MODELS = ["mechanistic_lite", "ml_sensors", "option_a", "hybrid_blend"]
 OUT = Path(__file__).resolve().parent / "data"
 
 

@@ -96,6 +96,8 @@ for m in FAMILY:
     rows.append(r)
 R = pd.DataFrame(rows).set_index("model")
 v7 = load("hybrid_v7.json")
+oa = load("option_a.json")  # the final model
+anom = load("anomaly.json")
 
 
 def md(df, index=True, floatfmt=".2f"):
@@ -120,11 +122,13 @@ def ho(m):
 > those differences but has no notion of dynamics or mass balance (`{python} cv("ml_sensors")`).
 > Using the ODE as the backbone and learning only its *errors* combines their strengths
 > (`{python} cv("hybrid_lite")`, and down to `{python} cv("hybrid_blend_ml")` when the two
-> families are averaged). The team's best model, hybrid v7, scored
-> **`{python} f"{v7['leaderboard_mape']['score']:.3f}"`** on the leaderboard. The last
+> families are averaged). The team's best stack, hybrid v7, scored
+> `{python} f"{v7['leaderboard_mape']['score']:.3f}"` on the leaderboard. Its last
 > improvements came from stacking more and more models, and that has real costs in
 > footprint, reproducibility and scientific clarity, which we discuss openly in
-> @sec-stacking.
+> @sec-stacking. Our **final model, Option A**, keeps only what generalises, one
+> sensor-assimilated mechanistic core with two learned corrections, and scored
+> **`{python} f"{oa['leaderboard_mape']['score']:.2f}"`** (@sec-option-a).
 
 # The problem
 
@@ -329,7 +333,7 @@ corrects the errors, the details of stage 1 matter little. Its *shape* matters.
 
 ![Hybrid model on the holdout batches.](figures/hybrid_blend.png)
 
-# Hybrid v7: the team's best model
+# Hybrid v7: the team's best stack
 
 Tobias' hybrid v7 pushes the same idea further: four hybrids with different mechanistic
 cores, blended per variable and per phase of the run.
@@ -352,7 +356,9 @@ hist = pd.DataFrame(
      ["v5", "Stack of hybrids on several cores", 7.366, 7.137],
      ["v6", "17-model stack, 10 more ideas", 7.244, None],
      ["v7", "4-model blend with sensor-assimilated cores", v7["cv7_mape"]["score"],
-      v7["leaderboard_mape"]["score"]]],
+      v7["leaderboard_mape"]["score"]],
+     ["Option A", "v7 cut to one core and two learned views (final)", oa["cv7_mape"]["score"],
+      oa["leaderboard_mape"]["score"]]],
     columns=["Version", "What", "CV (7-fold)", "Leaderboard"])
 md(hist, index=False, floatfmt=".3f")
 ```
@@ -449,9 +455,105 @@ of the challenge's brief.
 **What we would keep.** The gains that came from **ideas** rather than **layers** are the
 ones that generalise: soft sensors that turn the feed and volume logs into indirect
 measurements, assimilating them *into* the ODE, and the hybrid structure itself. A
-defensible final model is one mechanistic core with sensor assimilation plus one learned
+defensible final model is one mechanistic core with sensor assimilation plus a learned
 correction. It is small enough to audit, fit and deploy, and within a few tenths of the
-best stack.
+best stack. That is the model we adopted.
+
+# Option A: the final model {#sec-option-a}
+
+Option A is v7 cut down to that recipe. It keeps v7's **sensor-assimilated Monod core** and
+puts two learned views on it: the hybrid v3 correction and the functional-PCA trajectory
+model. Their predictions are blended geometrically, with weights per variable and per phase
+fitted on out-of-fold predictions. The finishing steps are v7's: glucose goes to the most
+likely point inside the interval implied by the bolus controller, and TCD ≥ VCD. Three of
+v7's four cores and its TCD ratio model are gone.
+
+```{python}
+#| label: tbl-option-a
+#| tbl-colwidths: [34,11,11,12,12,10,10]
+#| tbl-cap: "Option A and hybrid v7 (MAPE, %). The 7-fold CV and the leaderboard are Tobias' protocol. The holdout row is Option A's out-of-fold prediction of our 10 holdout batches; it is not the same protocol as our holdout check (see text)."
+rows_ = [
+    ["Option A: 7-fold CV", *[oa["cv7_mape"][v] for v in TARGETS], oa["cv7_mape"]["score"]],
+    ["Hybrid v7: 7-fold CV", *[v7["cv7_mape"][v] for v in TARGETS], v7["cv7_mape"]["score"]],
+    ["Option A: leaderboard", *[oa["leaderboard_mape"][v] for v in TARGETS],
+     oa["leaderboard_mape"]["score"]],
+    ["Hybrid v7: leaderboard", *[v7["leaderboard_mape"][v] for v in TARGETS],
+     v7["leaderboard_mape"]["score"]],
+    ["Option A: our holdout (out-of-fold)", *[oa["holdout_mape_oof7"][v] for v in TARGETS],
+     oa["holdout_mape_oof7"]["score"]],
+]
+md(pd.DataFrame(rows_, columns=["", *[VAR[v] for v in TARGETS], "Mean"]), index=False)
+```
+
+Option A is `{python} f"{oa['leaderboard_mape']['score'] - v7['leaderboard_mape']['score']:.2f}"`
+worse than v7 on the leaderboard and
+`{python} f"{oa['cv7_mape']['score'] - v7['cv7_mape']['score']:.2f}"` worse in CV, with one
+core instead of four. Rerunning its pinned commit reproduces the submitted file exactly
+(largest difference `{python} f"{oa['rerun_vs_submitted_pct']['max']:.0e}"`%), where v7's
+rerun differs by up to 20%. It was chosen by the team for this simplicity, not by our
+per-fold rule: it has no CV on our 5 dev folds.
+
+```{python}
+#| label: tbl-option-a-weights
+#| tbl-colwidths: [20,20,30,30]
+#| tbl-cap: "Option A blend weights per variable and phase of the run."
+w = pd.read_csv("option_a/blend_weights.csv", index_col=[0, 1])
+w.columns = ["Hybrid v3 correction", "Trajectory (fPCA)"]
+w.index = w.index.set_levels([VAR.get(v, v) for v in w.index.levels[0]], level=0)
+md(w.reset_index().rename(columns={'level_0': 'Variable', 'level_1': 'Days'}).round(2), index=False)
+```
+
+The hybrid v3 correction carries most of the weight. The trajectory model matters most for
+substrate (half of the late phase) and for late byproduct. Option A has no model fitted on
+our 39 dev batches, so it cannot be scored exactly like the models above. Its out-of-fold
+predictions of our holdout batches come from models that never saw those batches, but were
+fitted on about 42 of the 49 labelled batches, the other holdout batches included. They score
+`{python} f"{oa['holdout_mape_oof7']['score']:.2f}"`, against
+`{python} ho("hybrid_blend_ml")` for our best in-house model on its stricter protocol.
+
+![Option A on our holdout batches (out-of-fold predictions from its own 7-fold CV).](figures/option_a.png)
+
+# Screening for abnormal batches
+
+A forecast model also defines what *normal* looks like. Triantafyllia's anomaly analysis
+(`notebooks/anomaly_v7.ipynb`) uses hybrid v7's out-of-fold residuals, log(measured /
+predicted), of the 49 labelled batches as the normal behaviour, without any rejected batch or
+label. Each batch is compared with the other 48. A **batch score** (robust z-values and a PCA
+of the residual patterns) catches diffuse deviations, and **cell-level rules** catch one-day
+spikes and deviations that persist for three days or more.
+
+```{python}
+#| label: tbl-anomaly
+#| tbl-colwidths: [12,14,14,10,10,20,20]
+#| tbl-cap: "Deviations flagged in the labelled batches at the standard level (z-values against the other 48 batches)."
+dev = pd.read_csv("anomaly/cell_deviations.csv")
+dev["variable"] = dev["variable"].map(VAR)
+md(dev, index=False, floatfmt=".1f")
+```
+
+The batch score flags `{python} anom["batch_level"]["flagged"]` of 49 batches, the cell rules
+`{python} anom["cell_level"]["flagged_standard"]` (strict level:
+`{python} anom["cell_level"]["flagged_strict"]`). The two byproduct values on day 13 jump about
+threefold within a day, which suggests a measurement or sampling problem rather than
+metabolism. These are candidates for a process expert, not confirmed anomalies: the flagged
+share matches the false-alarm rate the thresholds were set to.
+
+![Flagged examples: measured (red) and v7 prediction (dashed), against all labelled batches (grey, 5-95% band in blue).](figures/anomaly_v7_cell_level.png)
+
+No rejected batch exists, so detection was tested by injecting faults into normal batches.
+Faults of about 65% are detected in
+`{python} f"{min(anom['detection_size_0.5'].values()):.0%}"`-`{python} f"{max(anom['detection_size_0.5'].values()):.0%}"`
+of cases on average over the four fault types, depending on the detector, while faults of
+10-20% are detected at about the false-alarm rate
+(`{python} f"{anom['false_alarm_rate']['batch score']:.0%}"` for the batch score,
+`{python} f"{anom['false_alarm_rate']['cell rules, strict']:.0%}"` for the strict rules), so
+they cannot be told apart from normal variation. The detector is a screening tool: useful
+when bad batches are not extremely rare, and it cannot replace review. The 12 test batches
+can only be checked on their inputs. The PCA check flags
+`{python} " and ".join(anom["test_inputs"]["flagged"])`. Both have a day-0 value outside the
+range of the labelled batches.
+
+![Share of faulty batches flagged, by fault type and size.](figures/anomaly_v7_detection.png)
 
 # Reproducibility
 
@@ -459,7 +561,8 @@ best stack.
   data, the frozen split, the code and `params.yaml`. DVC reruns only what changed.
 * **Versioned models.** Model versions are git tags in a registry (GTO), not "_v2" file
   names. Each tag points at the commit whose code, parameters and lock file produced it.
-  Hybrid v7 runs from a pinned commit of its own branch.
+  Option A, the final model, is registered in stage `prod`. It and hybrid v7 run unchanged
+  from pinned commits of their own branch.
 * **Logged decisions.** Every experiment, including the rejected ones, is recorded with its
   per-fold result in `docs/experiments.md`.
 * **No data in git.** Only hashes of the challenge data, and no file in `reports/` contains
@@ -468,8 +571,11 @@ best stack.
 # Limitations and next steps
 
 * Our CV (5 folds, 39 batches) and Tobias' (7 folds, 49 batches) are different protocols.
-  Hybrid v7 has no predictions for our holdout batches, so it is compared on the
-  leaderboard only.
+  Option A and hybrid v7 are compared with our models on the leaderboard, and Option A also
+  through its out-of-fold predictions of our holdout batches, which are not quite our holdout
+  protocol.
+* The anomaly screen uses v7's residuals. Rebuilding it on Option A's would match the final
+  model; we kept the analysis as it was done.
 * Data-driven parts exploit the adaptive feeding, which helps the forecast but would break
   under a new feeding strategy. A deployment for process design should restrict stage 2 to
   causal inputs, or at least test it on feeding schedules outside the historical range.

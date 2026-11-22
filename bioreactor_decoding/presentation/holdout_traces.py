@@ -1,6 +1,6 @@
 """Manim scene: actual vs. predicted on the holdout batches, all four variables at once.
 
-    MODEL=hybrid_blend manim -qh presentation/holdout_traces.py HoldoutTraces
+    MODEL=option_a manim -qh presentation/holdout_traces.py HoldoutTraces
 (or `make videos`). Reads presentation/data/<MODEL>.csv (export_traces.py).
 
 Fixed elements: four stacked axes sharing the day axis (VCD, TCD, substrate, byproduct) and
@@ -38,13 +38,16 @@ import numpy as np
 import pandas as pd
 
 DATA = Path(__file__).resolve().parent / "data"
-MODEL = os.environ.get("MODEL", "hybrid_blend")
+MODEL = os.environ.get("MODEL", "option_a")
 N_BATCHES = int(os.environ.get("N_BATCHES", "0"))  # > 0: only the first N (drafts)
 TITLES = {
     "mechanistic_lite": "Pure mechanistic: ODE model",
     "ml_sensors": "Pure machine learning: ridge + XGBoost",
     "hybrid_blend": "Hybrid: ODE + data-driven correction",
+    "option_a": "Hybrid (Option A): ODE + learned correction",
 }
+# option_a: out-of-fold predictions from its own 7-fold CV (see export_traces.py)
+SUBTITLES = {"option_a": "Holdout batches, each predicted by a model that never saw it"}
 TARGETS = ["vcd", "tcd", "substrate", "byproduct"]
 LABELS = {"vcd": "VCD", "tcd": "TCD", "substrate": "Substrate", "byproduct": "Byproduct"}
 
@@ -106,7 +109,8 @@ class HoldoutTraces(Scene):
         # --- fixed elements: title, legend, four axes with a shared day axis -------------
         title = txt(TITLES.get(MODEL, MODEL), font_size=30, color=TEXT)
         title.to_corner(UP + LEFT, buff=0.35)
-        sub = txt("Holdout batches, never seen in training", font_size=18, color=TEXT_2)
+        subtitle = SUBTITLES.get(MODEL, "Holdout batches, never seen in training")
+        sub = txt(subtitle, font_size=18, color=TEXT_2)
         sub.next_to(title, DOWN, aligned_edge=LEFT, buff=0.14)
 
         def key(color, label, dots):
