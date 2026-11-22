@@ -119,6 +119,22 @@ create_environment:
 #################################################################################
 
 
+## Restore data/external (Option A's cached inputs) from branch hybrid_v3_tr at the pinned commit
+EXTERNAL_DIR ?= data/external/hybrid_v3_tr
+EXTERNAL_REF = 863e751fe96f4b4350fbd4f12fc2527f68c36318
+EXTERNAL_FILES = outputs/core_assim/holdout_predictions.csv \
+	outputs/core_assim/predictions_vs_measured.csv outputs/hybrid_v3/holdout_predictions.csv \
+	outputs/hybrid_v7/blend_weights.csv outputs/hybrid_v7/holdout_predictions.csv \
+	outputs/option_a/leaderboard_submission.csv outputs/stack_v5/cv/members_oof_v7c.csv \
+	outputs/stack_v5/cv/parts_assim.csv
+.PHONY: external-data
+external-data:
+	git fetch origin hybrid_v3_tr
+	for f in $(EXTERNAL_FILES); do \
+		mkdir -p $(EXTERNAL_DIR)/$$(dirname $$f) && \
+		git show $(EXTERNAL_REF):$$f > $(EXTERNAL_DIR)/$$f || exit 1; \
+	done
+
 ## Make dataset
 .PHONY: data
 data: requirements

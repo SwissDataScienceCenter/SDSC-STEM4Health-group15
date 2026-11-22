@@ -46,6 +46,19 @@ Scores of all models, registered or not (`ml_sensors`, `mechanistic_lite`, `hybr
 `make metrics`. Versioning rules (when to bump major/minor/patch, what earns a version):
 [docs/mlops.md](docs/mlops.md#versioning-models).
 
+### Dependency on branch `hybrid_v3_tr`
+
+Two models still need branch `hybrid_v3_tr` to rerun (their registered files and results are
+in this repository either way). **Keep that branch on GitHub.**
+
+| Stage | Needs from `hybrid_v3_tr` | How |
+|---|---|---|
+| `hybrid_v7`, `anomaly@hybrid_v7` | Tobias' code at commit `18810698` (`hybrid_v7.ref` in `params.yaml`) | the stage checks it out as a git worktree in `external/` |
+| `option_a`, `anomaly@option_a` | 8 cached core and member outputs at commit `863e751`, which its code reads (they cannot be rebuilt here) | `make external-data` copies them into `data/external/` |
+
+Every other model depends only on the raw data. On a fresh clone: copy the challenge data
+into `data/raw/`, run `make external-data`, then `make pipeline`.
+
 ## Project Organization
 
 ```
