@@ -37,6 +37,7 @@ from bioreactor_decoding.features import build_features, feature_columns
 from bioreactor_decoding.modeling.hybrid import HybridODEConfig
 from bioreactor_decoding.modeling.hybrid_v3 import HybridV3
 from bioreactor_decoding.modeling.lite import LiteODEConfig
+from bioreactor_decoding.modeling.ml_sensors import MLSensors
 from bioreactor_decoding.modeling.models import (
     AverageEnsemble,
     ConstantNullModel,
@@ -101,6 +102,18 @@ def make_hybrid_blend(random_state: int | None = None) -> AverageEnsemble:
     return AverageEnsemble([make_hybrid_v3(random_state), make_hybrid_lite(random_state)])
 
 
+def make_ml_sensors(random_state: int | None = None) -> MLSensors:
+    """Ridge + XGBoost with volume and bolus soft sensors, no ODE (branch 3_ML_models)."""
+    return MLSensors(xgb_params=load_params().get("xgb"), random_state=_seed(random_state))
+
+
+def make_hybrid_blend_ml(random_state: int | None = None) -> AverageEnsemble:
+    """Geometric 50/50 average of hybrid_blend and ml_sensors: two different model families."""
+    return AverageEnsemble(
+        [make_hybrid_blend(random_state), make_ml_sensors(random_state)], geometric=True
+    )
+
+
 MODELS = {
     "null_constant": ConstantNullModel,
     "null_per_day": PerDayNullModel,
@@ -111,6 +124,8 @@ MODELS = {
     "hybrid_v3": make_hybrid_v3,
     "hybrid_lite": make_hybrid_lite,
     "hybrid_blend": make_hybrid_blend,
+    "ml_sensors": make_ml_sensors,
+    "hybrid_blend_ml": make_hybrid_blend_ml,
 }
 
 

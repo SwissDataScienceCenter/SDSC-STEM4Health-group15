@@ -156,8 +156,9 @@ class AverageEnsemble(BaseEstimator, RegressorMixin):
     plain estimator: CV, holdout_check and submissions treat it like any other model.
     """
 
-    def __init__(self, estimators=()):
+    def __init__(self, estimators=(), geometric=False):
         self.estimators = estimators
+        self.geometric = geometric  # average log predictions (a 50/50 blend in relative terms)
 
     def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
         self.estimators_ = [clone(e).fit(X, Y) for e in self.estimators]
@@ -165,4 +166,6 @@ class AverageEnsemble(BaseEstimator, RegressorMixin):
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
         preds = [e.predict(X) for e in self.estimators_]
+        if self.geometric:
+            return np.exp(sum(np.log(p) for p in preds) / len(preds))
         return sum(preds[1:], preds[0]) / len(preds)

@@ -100,7 +100,7 @@ CHEAP = {  # same code paths as the real models, with stage-1 fits of only a few
 }
 
 
-@pytest.mark.parametrize("model_name", ["null_constant", "null_per_day", "xgb_raw", "xgb_log_fold_change", "null_xgb_ensemble", *CHEAP])
+@pytest.mark.parametrize("model_name", ["null_constant", "null_per_day", "xgb_raw", "xgb_log_fold_change", "null_xgb_ensemble", "ml_sensors", *CHEAP])
 def test_holdout_never_used_for_fitting(model_name):
     """The model behind the holdout figures is fitted without any holdout data."""
     X, Y, split = labelled_data()

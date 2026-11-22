@@ -7,7 +7,7 @@
     "score": 6.9903
   },
   "footprint": {
-    "predict_seconds": 1.178,
-    "predict_seconds_per_batch": 0.1178
+    "predict_seconds": 1.396,
+    "predict_seconds_per_batch": 0.1396
   }
 }

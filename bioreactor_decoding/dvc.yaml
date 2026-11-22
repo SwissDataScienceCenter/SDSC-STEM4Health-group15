@@ -29,6 +29,7 @@ stages:
         - bioreactor_decoding/modeling/hybrid.py
         - bioreactor_decoding/modeling/hybrid_v3.py
         - bioreactor_decoding/modeling/lite.py
+        - bioreactor_decoding/modeling/ml_sensors.py
       outs:
         - models/${item}_dev.pkl
         - models/${item}_all.pkl
@@ -86,6 +87,10 @@ stages:
       - reports/figures/hybrid_lite.png:
           cache: false
       - reports/figures/hybrid_blend.png:
+          cache: false
+      - reports/figures/ml_sensors.png:
+          cache: false
+      - reports/figures/hybrid_blend_ml.png:
           cache: false
       - reports/figures/PE_all_models.png:
           cache: false

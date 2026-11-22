@@ -106,6 +106,12 @@ FIGURES = {
     "hybrid_v3": ("hybrid_v3.png", "Hybrid v3", False),
     "hybrid_lite": ("hybrid_lite.png", "Hybrid lite (v3 stage 2, mechanistic stage 1)", False),
     "hybrid_blend": ("hybrid_blend.png", "Average of hybrid v3 and hybrid lite", False),
+    "ml_sensors": ("ml_sensors.png", "Ridge + XGBoost with soft sensors", False),
+    "hybrid_blend_ml": (
+        "hybrid_blend_ml.png",
+        "Average of hybrid blend and ML with sensors",
+        False,
+    ),
 }
 
 

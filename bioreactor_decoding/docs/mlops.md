@@ -118,6 +118,8 @@ if the hackathon's data rules allow it.
 | `hybrid_v3` | Hybrid ODE + soft sensors + 50/50 blend with boosting (team model) | `modeling/hybrid_v3.py` |
 | `hybrid_lite` | `hybrid_v3`'s stage 2 on a mechanistic stage 1 without neural nets | `modeling/lite.py` |
 | `hybrid_blend` | Average of `hybrid_v3` and `hybrid_lite` (current best, CV 7.95) | `modeling/train.py` |
+| `ml_sensors` | Ridge + XGBoost with volume and bolus soft sensors, no ODE (branch `3_ML_models`) | `modeling/ml_sensors.py` |
+| `hybrid_blend_ml` | Geometric average of `hybrid_blend` and `ml_sensors` (CV 7.79, better in 3/5 folds) | `modeling/train.py` |
 
 ### Hybrid v3
 

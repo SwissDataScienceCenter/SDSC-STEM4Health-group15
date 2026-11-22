@@ -48,6 +48,7 @@ Docs: [problem and data](docs/intro.md) · [pipeline, models, MLOps rules](docs/
         ├── mechanistic.py  <- Sartorius-style ODE (numba) and its fitting
         ├── hybrid.py       <- hybrid ODE: neural nets correcting growth and lactate rates
         ├── hybrid_v3.py    <- hybrid v3: soft sensors, two branches, blend (one estimator)
+        ├── ml_sensors.py   <- ridge + XGBoost with soft sensors (ml_sensors)
         ├── lite.py         <- light stage 1 for hybrid_lite: mechanistic ODE, staged fit
         ├── train.py        <- CV on the dev folds and final fits, per model
         ├── evaluate.py     <- holdout check from the saved dev model

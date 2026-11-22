@@ -13,6 +13,8 @@ models:
   - hybrid_v3
   - hybrid_lite
   - hybrid_blend    # average of hybrid_v3 and hybrid_lite (uses both sections below)
+  - ml_sensors      # ridge + XGBoost with soft sensors, no ODE (uses the xgb section)
+  - hybrid_blend_ml # geometric average of hybrid_blend and ml_sensors
 
 seed: 0
 
@@ -21,7 +23,7 @@ features:
   # about that sample; legitimate because test feed schedules are given in full).
   use_future_feeds: true
 
-# XGBoost, shared by xgb_raw, xgb_log_fold_change and null_xgb_ensemble.
+# XGBoost, shared by xgb_raw, xgb_log_fold_change, null_xgb_ensemble and ml_sensors.
 xgb:
   n_estimators: 400
   learning_rate: 0.03

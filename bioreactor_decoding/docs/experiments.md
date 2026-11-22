@@ -42,3 +42,23 @@ Baseline: `hybrid_v3` CV 8.05, `hybrid_lite` CV 8.06 (v1.0.0 of both).
 **Conclusion.** Under 7% on CV looks out of reach with signals derived from the inputs. The
 remaining error is mostly per-batch offsets that the inputs do not predict, plus measurement
 noise (floor about 6.2). Further gains are likely to be a few hundredths per idea.
+
+## Round 2 (2026-11-22): a different model family
+
+The leaderboard entry 7.137 was most likely the average of Tobias' v3 and Triantafyllia's ML
+model (branch `3_ML_models`), while our `hybrid_blend` averages two near-copies (same stage 2;
+predictions 1.4% apart). Her ML model is ported as `ml_sensors` (`modeling/ml_sensors.py`;
+reproduces her CV on our folds within 0.04 per variable).
+
+Baseline: `hybrid_blend` CV 7.95.
+
+| # | Idea | Model | CV change | Folds better | Verdict |
+|---|---|---|---|---|---|
+| 5 | ML model alone (ridge + XGBoost with soft sensors) | ml_sensors | +0.23 | 2/5 | reject |
+| 6 | Geometric 50/50 average of `hybrid_blend` and `ml_sensors` | hybrid_blend_ml | −0.16 | 3/5 | not adopted (fails the rule) |
+
+Per variable (idea 6): byproduct better in 4/5 folds (up to −1.1), VCD and TCD in 3/5,
+substrate worse on average (up to +0.7). Holdout: 6.84 (from 6.99). Largest CV gain so far,
+but not consistent across folds. Per-variable ML weights (e.g. none for substrate) would
+likely help, but choosing four weights on these same 5 folds overfits them; judge such a
+variant on fresh fold splits.
