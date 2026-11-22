@@ -74,6 +74,12 @@ videos:
 	done
 
 
+## Render the Quarto report reports/report.html from the DVC-tracked metrics and figures
+.PHONY: report
+report:
+	cd reports && QUARTO_PYTHON="$(CURDIR)/.venv/bin/python" ../.venv/bin/quarto render report.qmd
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:
