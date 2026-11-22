@@ -569,6 +569,10 @@ range of the labelled batches.
   names. Each tag points at the commit whose code, parameters and lock file produced it.
   Option A, the final model, is registered in stage `prod`; its code is ported unchanged
   from its branch. Hybrid v7 runs from a pinned commit of its own branch.
+* **One dependency outside this branch.** Option A reads cached intermediate outputs, and
+  hybrid v7 runs code, from branch `hybrid_v3_tr`, which therefore has to stay available.
+  Their results are committed here, but rerunning them needs that branch; the other models
+  need only the raw data.
 * **Logged decisions.** Every experiment, including the rejected ones, is recorded with its
   per-fold result in `docs/experiments.md`.
 * **No data in git.** Only hashes of the challenge data, and no file in `reports/` contains

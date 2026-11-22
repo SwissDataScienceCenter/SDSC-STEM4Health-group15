@@ -25,7 +25,22 @@ flowchart LR
 Option A, the final model, is ported from branch `hybrid_v3_tr`: its code is in
 `modeling/option_a_src/`, its cached inputs in `data/external/`. Hybrid v7 is not ported: its
 stage runs the team's code unchanged from a git worktree at the commit in `params.yaml`
-(`modeling/external.py`), so it needs that branch.
+(`modeling/external.py`).
+
+**Known limitation: two models depend on branch `hybrid_v3_tr`, which must stay on GitHub.**
+We could not remove this before the submission deadline.
+
+- `hybrid_v7` and `anomaly@hybrid_v7` run Tobias' code from commit `18810698` on that branch.
+- `option_a` and `anomaly@option_a` read 8 cached core and member outputs committed there at
+  `863e751`. They were built by a chain of experiment scripts that are not ported, so they
+  cannot be rebuilt from the raw data here. `make external-data` copies them into
+  `data/external/`. They contain measured values, so they are not committed on this branch,
+  and there is no DVC remote to hold them.
+
+Without that branch, these four stages cannot rerun. Their committed results (metrics,
+holdout predictions, figures, anomaly tables) and the registry tags stay valid. Every other
+model depends only on the raw data. Removing the dependency means porting the experiment
+scripts that build the cached outputs (for Option A) and porting `src/hybrid_v7.py` (for v7).
 
 ## Commands
 
