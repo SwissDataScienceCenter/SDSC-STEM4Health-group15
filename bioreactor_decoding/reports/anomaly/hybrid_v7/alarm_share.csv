@@ -1,0 +1,10 @@
+detector,bad batches,detection,false-alarm rate,alarms per 1000 batches,real alarms,share of alarms that are real
+batch score,0.1%,71%,12%,123,0.7,1%
+batch score,1.0%,71%,12%,128,7.1,6%
+batch score,5.0%,71%,12%,152,35.5,23%
+"cell rules, standard",0.1%,83%,10%,103,0.8,1%
+"cell rules, standard",1.0%,83%,10%,109,8.3,8%
+"cell rules, standard",5.0%,83%,10%,139,41.7,30%
+"cell rules, strict",0.1%,71%,6%,62,0.7,1%
+"cell rules, strict",1.0%,71%,6%,68,7.1,10%
+"cell rules, strict",5.0%,71%,6%,94,35.5,38%

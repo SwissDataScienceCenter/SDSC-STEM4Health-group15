@@ -1,0 +1,68 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "bioreactor_decoding"
+version = "0.0.1"
+description = "Develop a model that captures the key dynamics of batch-fed culture runs in a bioreactor, learns from historical dat, and proves its predictive power on unseen runs."
+authors = [
+  { name = "SDSC hackathon team 15" },
+]
+
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    
+]
+dependencies = [
+    "dvc>=3.67.1",
+    "gto>=1.10.1",
+    "ipython",
+    "jupyterlab",
+    "loguru",
+    "matplotlib",
+    "mkdocs",
+    "notebook",
+    "numba>=0.68.1",
+    "numpy",
+    "pandas",
+    "pip",
+    "pytest",
+    "python-dotenv",
+    "pyyaml>=6.0.4",
+    "ruff",
+    "scikit-learn",
+    "scipy>=1.18.1",
+    "tqdm",
+    "typer",
+    "xgboost",
+]
+requires-python = "~=3.12.0"
+
+
+[tool.ruff]
+line-length = 99
+src = ["bioreactor_decoding"]
+include = ["pyproject.toml", "bioreactor_decoding/**/*.py", "presentation/**/*.py"]
+extend-exclude = ["bioreactor_decoding/modeling/option_a_src"]  # ported code, kept as on its branch
+
+[tool.ruff.lint]
+extend-select = ["I"]  # Add import sorting
+
+[tool.ruff.lint.isort]
+known-first-party = ["bioreactor_decoding"]
+force-sort-within-sections = true
+
+
+[tool.uv]
+# uv-managed CPython: it ships the headers C extensions need (the system Python has none).
+python-preference = "only-managed"
+
+
+[dependency-groups]
+presentation = [
+    "manim>=0.19",
+    "python-pptx>=1.0.2",
+    "quarto-cli>=1.11.9",
+]

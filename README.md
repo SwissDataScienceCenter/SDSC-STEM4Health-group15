@@ -1,5 +1,7 @@
 # SDSC-STEM4Health
 
+> **Team 15, "Decode the Bioreactor":** the project lives in [`bioreactor_decoding/`](bioreactor_decoding/). Start with [bioreactor_decoding/README.md](bioreactor_decoding/README.md) (quick start, model registry, docs). The rest of this file is the hackathon's template README; the root files (`environment.yml`, `project.toml`, `Brewfile`, `init.d/`) configure the Renku session image.
+
 ## Getting started in the SDSC STEM4Health Hackathon
 
 Welcome to the SDSC STEM4Health Hackathon! This git repository is your team's shared codebase: use it to keep your code in sync and under version control.

@@ -1,0 +1,220 @@
+# Reproducible pipeline: data -> CV + fits -> holdout check -> figures / submissions.
+#   make pipeline  (= dvc repro)    rebuild whatever is out of date
+#   dvc repro train@xgb_raw         one model only
+#   make metrics   (= dvc metrics show), dvc metrics diff   CV and holdout MAPE
+#   dvc exp run --set-param xgb.max_depth=4                 try a hyperparameter change
+# Model selection uses the CV metrics only; the holdout metrics are the final reality check.
+vars:
+  - params.yaml
+
+stages:
+  train:
+    foreach: ${models}
+    do:
+      cmd: python -m bioreactor_decoding.modeling.train --model ${item}
+      params:
+        - seed
+        - features
+        - xgb
+        - hybrid_v3
+        - hybrid_lite
+      deps:
+        - data/raw
+        - references/splits.csv
+        - bioreactor_decoding/dataset.py
+        - bioreactor_decoding/features.py
+        - bioreactor_decoding/modeling/models.py
+        - bioreactor_decoding/modeling/train.py
+        - bioreactor_decoding/modeling/mechanistic.py
+        - bioreactor_decoding/modeling/hybrid.py
+        - bioreactor_decoding/modeling/hybrid_v3.py
+        - bioreactor_decoding/modeling/lite.py
+        - bioreactor_decoding/modeling/ml_sensors.py
+      outs:
+        - models/${item}_dev.pkl
+        - models/${item}_all.pkl
+        - reports/cv/${item}.csv:
+            cache: false
+      metrics:
+        - reports/metrics/cv_${item}.json:
+            cache: false
+        - reports/metrics/footprint_${item}.json:
+            cache: false
+
+  evaluate:
+    foreach: ${models}
+    do:
+      cmd: python -m bioreactor_decoding.modeling.evaluate --model ${item}
+      deps:
+        - models/${item}_dev.pkl
+        - bioreactor_decoding/modeling/evaluate.py
+      outs:
+        - reports/holdout/${item}.csv:
+            cache: false
+      metrics:
+        - reports/metrics/${item}.json:
+            cache: false
+
+  submission:
+    foreach: ${models}
+    do:
+      cmd: python -m bioreactor_decoding.modeling.predict --model ${item}
+      deps:
+        - models/${item}_all.pkl
+        - data/raw
+        - bioreactor_decoding/modeling/predict.py
+      outs:
+        - data/processed/submission_${item}.csv
+
+  hybrid_v7:
+    cmd: python -m bioreactor_decoding.modeling.external_v7
+    params:
+      - hybrid_v7
+    deps:
+      - data/raw
+      - bioreactor_decoding/modeling/external.py
+      - bioreactor_decoding/modeling/external_v7.py
+    outs:
+      - data/processed/submission_hybrid_v7.csv
+      - data/processed/submission_hybrid_v7_submitted.csv
+      - reports/hybrid_v7/blend_weights.csv:
+          cache: false
+    metrics:
+      - reports/metrics/hybrid_v7.json:
+          cache: false
+
+  # The final model: Option A, ported from branch hybrid_v3_tr (modeling/option_a_src/), on the
+  # raw data and the cached core and member outputs imported into data/external.
+  # Its holdout predictions are out-of-fold from its own 7-fold CV (holdout_mape_oof7).
+  option_a:
+    cmd: python -m bioreactor_decoding.modeling.option_a
+    deps:
+      - data/raw
+      - data/external/hybrid_v3_tr
+      - references/splits.csv
+      - references/option_a_leaderboard.json
+      - bioreactor_decoding/modeling/option_a.py
+      - bioreactor_decoding/modeling/option_a_src
+    outs:
+      - data/processed/submission_option_a.csv
+      - data/interim/option_a/oof_predictions.csv  # out-of-fold, read by anomaly@option_a
+      - reports/holdout/option_a.csv:
+          cache: false
+      - reports/option_a/blend_weights.csv:
+          cache: false
+    metrics:
+      - reports/metrics/option_a.json:
+          cache: false
+
+  # Anomaly detection on a forecast model's out-of-fold residuals (notebooks/anomaly_v7.ipynb),
+  # one stage per model in anomaly.models (params.yaml): its residuals are the only input that
+  # depends on the model. dvc repro anomaly@option_a
+  anomaly:
+    foreach: ${anomaly.models}
+    do:
+      cmd: python -m bioreactor_decoding.anomaly --model ${key}
+      deps:
+        - data/raw
+        - ${item}
+        - bioreactor_decoding/anomaly.py
+      outs:
+        - reports/anomaly/${key}:
+            cache: false
+        - reports/figures/anomaly_${key}_cell_level.png:
+            cache: false
+        - reports/figures/anomaly_${key}_detection.png:
+            cache: false
+      metrics:
+        - reports/metrics/anomaly_${key}.json:
+            cache: false
+
+  figures:
+    cmd: python -m bioreactor_decoding.plots all-figures
+    deps:
+      - reports/holdout
+      - bioreactor_decoding/plots.py
+    outs:
+      - reports/figures/null_model_constant.png:
+          cache: false
+      - reports/figures/null_model_per_day.png:
+          cache: false
+      - reports/figures/xgb_raw.png:
+          cache: false
+      - reports/figures/xgb_log_fold_change.png:
+          cache: false
+      - reports/figures/null_xgb_ensemble.png:
+          cache: false
+      - reports/figures/hybrid_v3.png:
+          cache: false
+      - reports/figures/hybrid_lite.png:
+          cache: false
+      - reports/figures/hybrid_blend.png:
+          cache: false
+      - reports/figures/mechanistic_lite.png:
+          cache: false
+      - reports/figures/ml_sensors.png:
+          cache: false
+      - reports/figures/hybrid_blend_ml.png:
+          cache: false
+      - reports/figures/option_a.png:
+          cache: false
+      - reports/figures/PE_all_models.png:
+          cache: false
+
+# Model registry. Versions are git tags created with GTO, e.g.
+#   gto register bioreactor_decoding/dvc.yaml:hybrid_v3 --version v1.1.0
+#   gto show                      every model, its latest version and stage
+#   gto describe <model>@<ver>    the commit (code + params + dvc.lock) behind a version
+# Each artifact is the submission model, fitted on all 49 labelled batches.
+# The final model is option_a, in stage prod:  gto assign <artifact> --version v1.0.0 --stage prod
+artifacts:
+  option_a:
+    path: data/processed/submission_option_a.csv
+    type: model
+    desc: "Final model. One sensor-assimilated Monod core with two learned views (hybrid v3 recipe, fPCA), blended per variable and phase (leaderboard 6.81); ported from branch hybrid_v3_tr"
+    labels: [hybrid, mechanistic, team-model, final]
+  hybrid_v7:
+    path: data/processed/submission_hybrid_v7_submitted.csv
+    type: model
+    desc: "Tobias' 4-model blend on sensor-assimilated mechanistic cores (leaderboard 6.752), run from a pinned commit"
+    labels: [hybrid, mechanistic, team-model, external]
+  hybrid_v3:
+    path: models/hybrid_v3_all.pkl
+    type: model
+    desc: Hybrid ODE (mechanistic + neural-net rate corrections) + soft-sensor stage 2, 50/50 blend
+    labels: [hybrid, mechanistic, team-model]
+  hybrid_blend:
+    path: models/hybrid_blend_all.pkl
+    type: model
+    desc: Average of hybrid_v3 and hybrid_lite, both with the similarity member
+    labels: [hybrid, mechanistic, ensemble]
+  hybrid_lite:
+    path: models/hybrid_lite_all.pkl
+    type: model
+    desc: Hybrid v3's stage 2 on a mechanistic stage 1 without neural nets (about 10x cheaper)
+    labels: [hybrid, mechanistic]
+  null_xgb_ensemble:
+    path: models/null_xgb_ensemble_all.pkl
+    type: model
+    desc: 50/50 average of the per-day null model and raw XGBoost
+    labels: [baseline, ensemble]
+  xgb_log_fold_change:
+    path: models/xgb_log_fold_change_all.pkl
+    type: model
+    desc: XGBoost on log fold change vs. t = 0
+    labels: [baseline]
+  xgb_raw:
+    path: models/xgb_raw_all.pkl
+    type: model
+    desc: XGBoost on raw features and raw targets
+    labels: [baseline]
+  null_per_day:
+    path: models/null_per_day_all.pkl
+    type: model
+    desc: Per-day mean of each variable over the training batches
+    labels: [baseline, "null"]
+  null_constant:
+    path: models/null_constant_all.pkl
+    type: model
+    desc: Mean of each variable over all times and training batches
+    labels: [baseline, "null"]

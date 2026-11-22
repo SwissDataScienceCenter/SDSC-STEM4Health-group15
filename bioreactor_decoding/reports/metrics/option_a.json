@@ -1,0 +1,27 @@
+{
+  "cv7_mape": {
+    "vcd": 6.902,
+    "tcd": 6.816,
+    "substrate": 7.235,
+    "byproduct": 8.249,
+    "score": 7.3
+  },
+  "leaderboard_mape": {
+    "vcd": 6.568,
+    "tcd": 6.41,
+    "substrate": 6.546,
+    "byproduct": 7.716,
+    "score": 6.81
+  },
+  "holdout_mape_oof7": {
+    "vcd": 6.1787,
+    "tcd": 6.1736,
+    "substrate": 6.5853,
+    "byproduct": 7.5296,
+    "score": 6.6168
+  },
+  "rerun_vs_submitted_pct": {
+    "median": 2.7310859284896184e-14,
+    "max": 2.231196776153368e-12
+  }
+}

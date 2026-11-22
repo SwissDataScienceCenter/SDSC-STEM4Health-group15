@@ -1,0 +1,13 @@
+{
+  "holdout_mape": {
+    "vcd": 8.8943,
+    "tcd": 8.9022,
+    "substrate": 10.5949,
+    "byproduct": 8.4576,
+    "score": 9.2123
+  },
+  "footprint": {
+    "predict_seconds": 0.001,
+    "predict_seconds_per_batch": 0.0001
+  }
+}

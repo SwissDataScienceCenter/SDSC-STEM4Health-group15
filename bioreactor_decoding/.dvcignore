@@ -1,0 +1,9 @@
+# Add patterns of files dvc should ignore, which could improve
+# the performance. Learn more at
+# https://dvc.org/doc/user-guide/dvcignore
+
+# Not part of the pipeline; skipping them keeps dvc status fast
+.venv/
+models/cache/
+/external/
+presentation/media/

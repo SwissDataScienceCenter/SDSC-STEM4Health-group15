@@ -1,0 +1,12 @@
+{
+  "footprint": {
+    "cv_seconds": 4.3,
+    "cpu_count": 16,
+    "fit_dev_seconds": 1.0,
+    "model_dev_mb": 1.911,
+    "fit_all_seconds": 1.0,
+    "model_all_mb": 1.929,
+    "peak_rss_mb": 259.5,
+    "peak_rss_children_mb": 0.0
+  }
+}

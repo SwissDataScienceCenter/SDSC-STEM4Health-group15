@@ -1,0 +1,78 @@
+# Pipeline settings and hyperparameters. Read by bioreactor_decoding.modeling.train and tracked
+# by DVC (dvc.yaml), so changing a value here reruns exactly the stages that depend on it.
+# Try a change without editing this file:  dvc exp run --set-param hybrid_v3.blend_weight=0.4
+
+# Models run by the pipeline; each gets its own train / evaluate / submission stages.
+# Names are keys of bioreactor_decoding.modeling.train.MODELS.
+models:
+  - null_constant
+  - null_per_day
+  - xgb_raw
+  - xgb_log_fold_change
+  - null_xgb_ensemble
+  - hybrid_v3
+  - hybrid_lite
+  - hybrid_blend    # average of hybrid_v3 and hybrid_lite (uses both sections below)
+  - mechanistic_lite # hybrid_lite's ODE alone (pure mechanistic, uses the hybrid_lite section)
+  - ml_sensors      # ridge + XGBoost with soft sensors, no ODE (uses the xgb section)
+  - hybrid_blend_ml # geometric average of hybrid_blend and ml_sensors
+
+seed: 0
+
+features:
+  # Add the feed dosed right after each sample (feeding is adaptive, so it carries information
+  # about that sample; legitimate because test feed schedules are given in full).
+  use_future_feeds: true
+
+# XGBoost, shared by xgb_raw, xgb_log_fold_change, null_xgb_ensemble and ml_sensors.
+xgb:
+  n_estimators: 400
+  learning_rate: 0.03
+  max_depth: 3
+  min_child_weight: 3
+  subsample: 0.8
+  colsample_bytree: 0.8
+
+# Team model from branch hybrid_v3_tr, ported to bioreactor_decoding.modeling.hybrid_v3.
+hybrid_v3:
+  inner_folds: 5      # batch-wise folds inside fit for the stage-2 (stacking) features
+  n_bags: 10          # bootstrap bags of the data-driven branch
+  blend_weight: 0.5   # weight of the hybrid branch in the geometric blend
+  similarity_weight: 0.3333  # similarity member for VCD/TCD (0 = off): better in 4/5 CV folds
+  similarity_k: 5
+  feedb_offset: false # feed-B soft sensor for VCD/TCD (batch mean log-dose deviation)
+  stage1:             # hybrid ODE (mechanistic model + rate-correcting neural nets)
+    variant: states
+    outputs: [mu, lac]  # rates the networks correct: growth and lactate
+    hidden: 4
+    lam: 0.01
+    seeds: 4
+    mech_starts: 6
+    mech_max_nfev: 300
+    net_max_nfev: 150
+
+# hybrid_v3's stage 2 on a light stage 1 (mechanistic ODE without neural nets, staged fit),
+# ported from branch 06_hybrid_tr_based. About 10x cheaper to fit than hybrid_v3.
+hybrid_lite:
+  inner_folds: 5
+  n_bags: 10
+  blend_weight: 0.5
+  similarity_weight: 0.3333  # better in 5/5 CV folds
+  similarity_k: 5
+  feedb_offset: false
+  stage1:
+    max_nfev_stage: 20
+    max_nfev_final: 60
+    f_scale: 0.1
+
+# Tobias' hybrid v7 (branch hybrid_v3_tr), run unchanged at this commit
+# (bioreactor_decoding.modeling.external_v7). Change the commit to pick up a new version.
+hybrid_v7:
+  ref: 18810698a46e0a31e890e737562f8ebf186df7cf
+
+# Anomaly detection: one run per forecast model, each with the file its out-of-fold residuals
+# come from (bioreactor_decoding.anomaly.RESIDUAL_SOURCES). option_a is the final model.
+anomaly:
+  models:
+    option_a: data/interim/option_a/oof_predictions.csv
+    hybrid_v7: data/external/hybrid_v3_tr

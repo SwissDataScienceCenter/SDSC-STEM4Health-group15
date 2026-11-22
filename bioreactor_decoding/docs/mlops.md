@@ -1,0 +1,307 @@
+# Reproducible pipeline (DVC)
+
+Every number in our reports and slides comes out of one DVC pipeline, defined in
+[`dvc.yaml`](../dvc.yaml) and configured in [`params.yaml`](../params.yaml). The aim is that
+anyone can rebuild any result with one command, see exactly what produced it, and try a change
+without editing code.
+
+```mermaid
+flowchart LR
+    raw[(data/raw<br/>versioned by DVC)] --> train
+    splits[references/splits.csv] --> train
+    params[params.yaml] --> train
+    train["train@model<br/>CV on dev folds,<br/>fit on dev and on all"] --> evaluate["evaluate@model<br/>holdout MAPE<br/>(dev model, no refit)"]
+    train --> submission["submission@model<br/>data/processed/<br/>submission_model.csv"]
+    evaluate --> figures["figures<br/>reports/figures/*.png"]
+    raw --> option_a["option_a<br/>final model<br/>(ported)"]
+    ext[(data/external<br/>versioned by DVC)] --> option_a
+    ext --> anomaly
+    option_a --> figures
+    raw --> v7["hybrid_v7<br/>pinned commit"]
+    option_a -- out-of-fold --> anomaly["anomaly@model<br/>on that model's residuals"]
+    raw --> anomaly
+```
+
+Option A, the final model, is ported from branch `hybrid_v3_tr`: its code is in
+`modeling/option_a_src/`, its cached inputs in `data/external/`. Hybrid v7 is not ported: its
+stage runs the team's code unchanged from a git worktree at the commit in `params.yaml`
+(`modeling/external.py`).
+
+**Known limitation: two models depend on branch `hybrid_v3_tr`, which must stay on GitHub.**
+We could not remove this before the submission deadline.
+
+- `hybrid_v7` and `anomaly@hybrid_v7` run Tobias' code from commit `18810698` on that branch.
+- `option_a` and `anomaly@option_a` read 8 cached core and member outputs committed there at
+  `863e751`. They were built by a chain of experiment scripts that are not ported, so they
+  cannot be rebuilt from the raw data here. `make external-data` copies them into
+  `data/external/`. They contain measured values, so they are not committed on this branch,
+  and there is no DVC remote to hold them.
+
+Without that branch, these four stages cannot rerun. Their committed results (metrics,
+holdout predictions, figures, anomaly tables) and the registry tags stay valid. Every other
+model depends only on the raw data. Removing the dependency means porting the experiment
+scripts that build the cached outputs (for Option A) and porting `src/hybrid_v7.py` (for v7).
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `make pipeline` (`dvc repro`) | Rebuild everything that is out of date, and nothing else |
+| `dvc repro train@xgb_raw` | One stage of one model |
+| `make metrics` (`dvc metrics show`) | CV and holdout MAPE of every model |
+| `dvc metrics diff main` | How the metrics changed relative to `main` |
+| `dvc exp run --set-param xgb.max_depth=4` | Try a parameter change as a tracked experiment |
+| `dvc exp show` | Compare experiments side by side |
+| `make test` | Leakage and holdout-isolation tests, among others |
+| `python -m bioreactor_decoding.modeling.compare <model>` | Per-fold CV comparison and verdict |
+| `gto show` (from the git root) | Registered model versions |
+
+DVC decides what is out of date from the hashes recorded in `dvc.lock`: the data, the code each
+stage depends on, the parameters it reads, and its outputs. Changing `hybrid_v3.blend_weight`
+reruns the training stages; editing `plots.py` reruns only the figures.
+
+## Versioning models
+
+Model versions are git tags, managed with [GTO](https://dvc.org/doc/gto), DVC's model
+registry. They replace "_v2", "_v3" suffixes in file names. The models are declared under
+`artifacts:` in `dvc.yaml`; a version tag points at the commit whose code, `params.yaml`
+and `dvc.lock` produced that model, so `git checkout <tag> && make pipeline` rebuilds it.
+
+```bash
+gto show                                                   # every model and its latest version
+gto history bioreactor_decoding/dvc.yaml:hybrid_v3         # all versions of one model
+gto describe bioreactor_decoding/dvc.yaml:hybrid_v3@v1.0.0 # commit, path, description
+gto register bioreactor_decoding/dvc.yaml:hybrid_v3 --bump-minor   # after an improvement
+```
+
+Run GTO from the repository root (the git root is one level above this project).
+Semantic versioning for a model:
+
+| Bump | When | Example |
+|---|---|---|
+| major | A different modelling approach, or a change of the evaluation protocol | v1 → v2 |
+| minor | A new component or a retuned parameter that changes predictions | v1.0 → v1.1 |
+| patch | Same predictions, cleaner code, or a fix that does not change the scores | v1.0.0 → v1.0.1 |
+
+A model name stays the same across versions (`hybrid_v3` is the name of the team model, not a
+version number). An idea is tried first as a `dvc exp run` experiment and gets a version only
+if it passes the per-fold rule below.
+
+## Experiments and the decision rule
+
+All runs use the same 5 dev folds, so the per-fold *difference* between two runs is much
+less noisy than the spread of scores across folds. A change is adopted only if its CV MAPE
+is lower on average **and** in at least 4 of the 5 folds:
+
+```bash
+dvc exp run -n my_idea --set-param hybrid_lite.blend_weight=0.6
+python -m bioreactor_decoding.modeling.compare hybrid_lite                  # vs. git HEAD
+python -m bioreactor_decoding.modeling.compare hybrid_blend --baseline hybrid_v3
+```
+
+Screen ideas on `hybrid_lite` (about 12 minutes for a full CV), then confirm on the other
+hybrids. Results, including the rejected ideas, go in [the experiment log](experiments.md).
+
+## What is stored where
+
+| What | Where | In git? |
+|---|---|---|
+| Code, `params.yaml`, `dvc.yaml`, `dvc.lock`, `uv.lock` | repository | yes |
+| Raw challenge data | `data/raw/` | no; only its hash, in `data/raw.dvc` |
+| Option A's cached core and member outputs (from `hybrid_v3_tr`) | `data/external/` | no; only its hash, in `data/external.dvc` |
+| Fitted models | `models/<model>_{dev,all}.pkl` | no; rebuilt by `make pipeline` |
+| Stage-1 fit cache of hybrid v3 | `models/cache/` | no |
+| CV scores per fold | `reports/cv/<model>.csv` | yes |
+| Metrics (CV and holdout MAPE) | `reports/metrics/cv_<model>.json`, `<model>.json` | yes |
+| Holdout predictions (no measured values) | `reports/holdout/<model>.csv` | yes |
+| Anomaly detection tables (scores, flags, rates) | `reports/anomaly/<model>/*.csv`, `reports/metrics/anomaly_<model>.json` | yes |
+| Figures | `reports/figures/*.png` | yes |
+| Submissions | `data/processed/submission_<model>.csv` | no (derived from the data) |
+
+Results are in git, so they can be reviewed without rerunning anything. Data and model files are
+not, and no file in `reports/` contains measured values: the challenge data never leaves this
+machine through git. There is no DVC remote; set one up only
+if the hackathon's data rules allow it.
+
+## Rules the pipeline enforces
+
+- **The holdout is a reality check, not a selection tool.** Choose between models and settings
+  using the CV metrics (`cv_mape`). `evaluate` only scores the holdout with the model fitted on
+  dev batches, and refuses a model whose recorded `fitted_batches` include holdout batches.
+- **No leakage across batches or time.** Features use only a batch's own inputs: its t = 0
+  measurement, sampling times, volumes and feeds. Anything learned, including pooled
+  statistics, is learned inside `fit` on the training batches. `tests/test_data.py` checks
+  this for every model (`make test`).
+- **Submissions are fitted on all 49 labelled batches** (`<model>_all.pkl`). The holdout check
+  uses the model fitted on the 39 dev batches (`<model>_dev.pkl`).
+
+## Models
+
+| Name | What it is | Code |
+|---|---|---|
+| **`option_a`** | **The final model** (GTO stage `prod`): one sensor-assimilated Monod core, two learned views, blended (leaderboard 6.81; ported from `hybrid_v3_tr`) | `modeling/option_a.py`, `modeling/option_a_src/` |
+| `null_constant` | Mean of each variable over all times and batches | `modeling/models.py` |
+| `null_per_day` | Mean of each variable per culture day (the "recipe" curve) | `modeling/models.py` |
+| `xgb_raw` | XGBoost on raw features and raw targets | `modeling/train.py` |
+| `xgb_log_fold_change` | XGBoost on log(y_t / y_0) | `modeling/models.py` |
+| `null_xgb_ensemble` | 50/50 average of `null_per_day` and `xgb_raw` | `modeling/models.py` |
+| `hybrid_v3` | Hybrid ODE + soft sensors + 50/50 blend with boosting (team model) | `modeling/hybrid_v3.py` |
+| `hybrid_lite` | `hybrid_v3`'s stage 2 on a mechanistic stage 1 without neural nets | `modeling/lite.py` |
+| `hybrid_blend` | Average of `hybrid_v3` and `hybrid_lite` (best adopted under our 5-fold rule, CV 7.95) | `modeling/train.py` |
+| `mechanistic_lite` | Pure mechanistic: `hybrid_lite`'s ODE alone, no data-driven correction (CV 13.56) | `modeling/models.py` (`Stage1Only`) |
+| `ml_sensors` | Ridge + XGBoost with volume and bolus soft sensors, no ODE (branch `3_ML_models`) | `modeling/ml_sensors.py` |
+| `hybrid_v7` | Tobias' 4-model blend on sensor-assimilated cores (leaderboard 6.752; run from a pinned commit) | `modeling/external_v7.py` |
+| `hybrid_blend_ml` | Geometric average of `hybrid_blend` and `ml_sensors` (CV 7.79, better in 3/5 folds) | `modeling/train.py` |
+
+### Hybrid v3
+
+`hybrid_v3` is ported from branch `hybrid_v3_tr` (`src/sartorius_model.py`,
+`src/hybrid_model.py`, `src/hybrid_v3.py`) into three modules:
+`modeling/mechanistic.py` (the ODE), `modeling/hybrid.py` (the ODE with neural-net
+rate corrections, stage 1) and `modeling/hybrid_v3.py` (soft sensors, both branches, blend).
+The port reproduces the original's simulators exactly and its stage 2 to within 0.03 MAPE.
+It also fixes two leaks of the original:
+
+1. **Stacking.** Stage 2 was trained on stage-1 predictions from models that had seen the
+   batches stage 2 was later tested on. Now the stage-1 predictions for stage 2's training rows
+   come from inner folds over the training batches only.
+2. **Pooled statistics.** The per-day mean feed schedule and the per-sample volume loss were
+   computed over all 61 batches. Now they are learned from the training batches in `fit`.
+
+Stage 1 is expensive: about 15 minutes per fit on 16 cores, and six fits per v3 fit (all
+training batches plus five inner folds). Fits are cached in `models/cache/`, keyed on the
+training data and the stage-1 settings, so rerunning on the same batches (figures, reruns,
+stage-2 experiments) is quick.
+
+### Hybrid lite and the similarity member
+
+Both come from branch `06_hybrid_tr_based`:
+
+- **`hybrid_lite`** is `HybridV3` with a different stage 1: a mechanistic ODE with a latent
+  nutrient and no neural nets, fitted block by block (cells, substrate, byproduct) and then
+  jointly (`modeling/lite.py`). The port reproduces the original's simulator and starting values
+  exactly. One stage-1 fit takes about 75 s instead of about 15 minutes: stage 2 does most of the
+  work, so a cruder stage 1 costs little accuracy.
+- **The similarity member** (`similarity_weight` in `params.yaml`; 1/3 in both hybrids) is a
+  third blend member for VCD and TCD. It predicts a batch's correction curve from its k most
+  similar training batches at t = 0, with distances on descriptors standardised inside `fit`.
+
+### Hybrid v7 (external, pinned commit)
+
+Tobias' best model (branch `hybrid_v3_tr`, commit `1881069`): a geometric blend of four
+models, with weights per variable and per day segment (days 1-6, 7-13):
+
+1. hybrid v3's stage 2 on a **sensor-conditioned Monod core**: 400 per-batch parameter draws
+   (growth, yield, death, lactate consumption, t = 0 cell count) weighted by how well they
+   match the glucose interval implied by the bolus controller and the unlogged volume;
+2. a functional-PCA trajectory model on the same kind of core;
+3. hybrid v3 itself;
+4. hybrid v3's stage 2 on a **two-population core** (growing cells switch to a
+   non-growing, lactate-consuming state).
+
+Glucose is then set to the MAPE-optimal point inside the bolus-rule interval, and TCD to VCD
+times a modelled TCD/VCD ratio. Version history in his protocol (7-fold CV over the 49
+labelled batches): v3 7.674 → v5 stack 7.366 (leaderboard 7.137) → v6 7.244 → **v7 7.187
+(leaderboard 6.752)**.
+
+It is not rewritten: `dvc repro hybrid_v7` checks out the commit in `params.yaml`
+(`hybrid_v7.ref`) as a git worktree in `external/`, runs `src/hybrid_v7.py` unchanged (about
+a minute; the cores' outputs are committed on his branch) and collects the submission and
+`reports/metrics/hybrid_v7.json`. Two caveats, both recorded in that file:
+
+- **Different protocol.** `cv7_mape` is his 7-fold CV, not our 5 dev folds (`cv_mape`), and
+  the stage-2 models inherit the original v3's stacking (stage-1 out-of-fold predictions from
+  the same folds), so it is slightly optimistic. The leaderboard score is the honest number.
+- **The rerun differs slightly from the submitted file** (median 0.22%, one value 19.8%:
+  Batch48, day 2). The rerun is deterministic and independent of the Python environment, so
+  the submitted file was written from cached core outputs that changed before the commit.
+  The registered artifact is the submitted file.
+
+### Option A, the final model (ported)
+
+Option A (branch `hybrid_v3_tr`, commit `863e751`, `src/option_a.py`) is v7 cut down to what
+the report argues for: **one mechanistic core with sensor assimilation plus learned
+corrections**. The core is v7's sensor-conditioned particle Monod core (member 1 above). Two
+learned views run on it, the hybrid v3 recipe (30 bags, 50/50 branch blend) and the
+functional-PCA trajectory model (K = 5, ridge 10). They are blended geometrically with
+non-negative weights per variable and day segment, fitted on out-of-fold predictions. The
+finishing steps are v7's: glucose is moved to the MAPE-optimal point inside the bolus-rule
+interval, and TCD ≥ VCD. It drops v7's other three cores and the TCD ratio model.
+
+| | Option A | Hybrid v7 |
+|---|---|---|
+| Mechanistic cores | 1 | 4 |
+| 7-fold CV (`cv7_mape`, his protocol) | 7.30 | 7.187 |
+| Leaderboard (12 test batches) | 6.81 | 6.752 |
+| Rerun vs. submitted file | identical (max 2e-12 %) | median 0.22 %, max 19.8 % |
+
+Option A gives up 0.06 on the leaderboard for a model with one mechanistic core instead of
+four, whose submission reproduces exactly. The team adopted it as the final model (registered as `option_a` v1.0.0,
+stage `prod`). It was not judged by our per-fold rule, since it has no CV on our 5 dev folds
+(see `docs/experiments.md`).
+
+**The port.** `modeling/option_a_src/` holds `src/option_a.py` and the six modules it imports
+(`hybrid_v3`, `experiments_v4b`, `experiments_v5`, `experiments_v5_ideas`, `experiments_v6`,
+`stack_v5`), as committed at `863e751`. The only change is two path constants in
+`hybrid_v3.py`, so that the code reads this project's data. The folder is excluded from ruff
+to keep it as on the branch. Option A also reads cached outputs of earlier scripts on that
+branch: the sensor-assimilated core (`core_assim`), its cached parts and the out-of-fold
+predictions of the two members (`stack_v5/cv/members_oof_v7c.csv`), built by a chain of
+experiment scripts. They are imported as committed at `863e751` into
+`data/external/hybrid_v3_tr/outputs/`, which DVC tracks (`data/external.dvc`; not in git,
+since they contain measured values), together with the submitted file. Regenerating them from
+the raw data would mean porting that chain as well (core_assim, core_monod, sartorius_model
+and the v5-v7 experiment scripts).
+
+`dvc repro option_a` (`modeling/option_a.py`, about 30 s) runs `option_a.main()` on these
+inputs and writes the submission `data/processed/submission_option_a.csv`, the registered
+artifact. It matches the submitted file to 2e-12 %, and every output matches a run of the
+original commit byte for byte. `reports/metrics/option_a.json` records:
+
+- `cv7_mape`: his 7-fold CV, rerun (identical to the committed `cv_score.csv`);
+- `leaderboard_mape`: the leaderboard's answer to the submission, as printed by
+  `notebooks/Leaderboard_template.ipynb` on the branch (there is no results file), recorded in
+  `references/option_a_leaderboard.json`;
+- `holdout_mape_oof7`: MAPE on our 10 holdout batches of its **out-of-fold** predictions
+  (`reports/holdout/option_a.csv`). Each holdout batch was predicted by a model that never saw
+  it, but that model was fitted on about 42 of the 49 labelled batches, holdout batches
+  included, and the choices behind Option A were made on those folds. So it is comparable in
+  spirit, not in protocol, with `holdout_mape` of our models (fitted on the 39 dev batches);
+- `rerun_vs_submitted_pct`: how far this run is from the submitted file.
+
+## Anomaly detection
+
+`dvc repro anomaly` (`bioreactor_decoding/anomaly.py`, narrative in
+`notebooks/anomaly_v7.ipynb`, from branch `anomalies_detection`) screens the 49 labelled
+batches for abnormal behaviour, using only normal batches: a forecast model's out-of-fold
+residuals, log(measured / predicted), define normal. It reports a batch score (robust z and
+PCA T²/SPE, each batch against the other 48), cell-level rules for spikes and persistent
+deviations (standard and strict level), detection rates on injected faults, and an input-only
+check of the 12 test batches.
+
+The model is a parameter: `anomaly.models` in `params.yaml` maps each model to the file its
+residuals come from, and DVC makes one stage per entry (`anomaly@option_a`, the final model;
+`anomaly@hybrid_v7`, the original analysis). Option A's residuals come from the out-of-fold
+predictions the `option_a` stage writes, so a new version of Option A reruns its anomaly
+screen. Adding a model takes one line in `params.yaml` and one function in
+`anomaly.RESIDUAL_SOURCES`; the rest of the analysis does not depend on the model.
+Results: `reports/anomaly/<model>/`, `reports/metrics/anomaly_<model>.json`,
+`reports/figures/anomaly_<model>_*.png`.
+
+## Resource footprint
+
+`train` writes `reports/metrics/footprint_<model>.json`: wall-clock time of the CV and of each
+final fit, peak memory, model size and the number of cores; `evaluate` adds the prediction time
+per batch. For the hybrid models it also records whether stage 1 came from the cache. A cached
+fit costs seconds, so read the time of a fit only together with that flag. Uncached, a
+`hybrid_v3` fit takes about 15 minutes on 16 cores.
+
+## Adding a model
+
+1. Write an estimator with the scikit-learn API (`fit(X, Y)`, `predict(X)` returning a DataFrame
+   of the 4 targets). X carries `batch_id` next to the features.
+2. Register a factory in `MODELS` in `modeling/train.py`; put its hyperparameters in
+   `params.yaml`.
+3. Add its name to `models:` in `params.yaml`, to `FIGURES` in `plots.py`, and to the
+   leakage tests in `tests/test_data.py`.
+4. Run `make pipeline`, then `dvc metrics diff`.
